@@ -24,6 +24,8 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.logicalsapien.sapienssh.data.dao.ColorSchemeDao
+import com.logicalsapien.sapienssh.data.dao.CommandHistoryDao
+import com.logicalsapien.sapienssh.data.dao.ConnectionGroupDao
 import com.logicalsapien.sapienssh.data.dao.HostDao
 import com.logicalsapien.sapienssh.data.dao.KnownHostDao
 import com.logicalsapien.sapienssh.data.dao.PortForwardDao
@@ -33,6 +35,8 @@ import com.logicalsapien.sapienssh.data.dao.CredentialDao
 import com.logicalsapien.sapienssh.data.dao.QuickCommandDao
 import com.logicalsapien.sapienssh.data.entity.ColorPalette
 import com.logicalsapien.sapienssh.data.entity.ColorScheme
+import com.logicalsapien.sapienssh.data.entity.CommandHistory
+import com.logicalsapien.sapienssh.data.entity.ConnectionGroup
 import com.logicalsapien.sapienssh.data.entity.Credential
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.data.entity.KnownHost
@@ -64,6 +68,7 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
  * - Version 8: Added quick_commands table for reusable terminal commands (manual migration)
  * - Version 9: Added credentials table for reusable authentication credentials (manual migration)
  * - Version 10: Added credential_id column to hosts for linking credentials to connections (manual migration)
+ * - Version 11: Added connection_groups table, group_id column to hosts, and command_history table (manual migration)
  * - Future versions: Use Room AutoMigration when possible for simple schema changes
  *
  * Security Considerations:
@@ -80,9 +85,11 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
         ColorPalette::class,
         Profile::class,
         QuickCommand::class,
-        Credential::class
+        Credential::class,
+        ConnectionGroup::class,
+        CommandHistory::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -102,13 +109,15 @@ abstract class ConnectBotDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
     abstract fun quickCommandDao(): QuickCommandDao
     abstract fun credentialDao(): CredentialDao
+    abstract fun connectionGroupDao(): ConnectionGroupDao
+    abstract fun commandHistoryDao(): CommandHistoryDao
 
     companion object {
         /**
          * Current database schema version.
          * This is also used for JSON export/import versioning.
          */
-        const val SCHEMA_VERSION = 10
+        const val SCHEMA_VERSION = 11
 
         /**
          * Migration from version 4 to 5: Add profiles table and profile_id to hosts.
@@ -295,6 +304,45 @@ abstract class ConnectBotDatabase : RoomDatabase() {
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE hosts ADD COLUMN credential_id INTEGER DEFAULT NULL")
+            }
+        }
+
+        /**
+         * Migration from version 10 to 11: Add connection_groups table, group_id to hosts,
+         * and command_history table.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create connection_groups table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `connection_groups` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `color` TEXT,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+
+                // Add group_id column to hosts table
+                db.execSQL("ALTER TABLE hosts ADD COLUMN group_id INTEGER DEFAULT NULL")
+
+                // Create command_history table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `command_history` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `host_id` INTEGER NOT NULL,
+                        `command` TEXT NOT NULL,
+                        `executed_at` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+
+                // Create index on host_id for command_history
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_command_history_host_id` ON `command_history` (`host_id`)")
             }
         }
     }

@@ -112,7 +112,14 @@ data class Host(
      * the per-host saved password. A value of null means no linked credential (manual auth).
      */
     @ColumnInfo(name = "credential_id")
-    val credentialId: Long? = null
+    val credentialId: Long? = null,
+
+    /**
+     * Optional connection group ID for organizing hosts into groups/folders.
+     * A value of null means the host is ungrouped.
+     */
+    @ColumnInfo(name = "group_id")
+    val groupId: Long? = null
 ) {
     /**
      * Check if this host is temporary (not saved to database).

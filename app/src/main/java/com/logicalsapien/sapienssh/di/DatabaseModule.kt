@@ -41,7 +41,7 @@ object DatabaseModule {
         ConnectBotDatabase::class.java,
         DATABASE_NAME
     )
-        .addMigrations(ConnectBotDatabase.MIGRATION_4_5, ConnectBotDatabase.MIGRATION_7_8, ConnectBotDatabase.MIGRATION_8_9, ConnectBotDatabase.MIGRATION_9_10)
+        .addMigrations(ConnectBotDatabase.MIGRATION_4_5, ConnectBotDatabase.MIGRATION_7_8, ConnectBotDatabase.MIGRATION_8_9, ConnectBotDatabase.MIGRATION_9_10, ConnectBotDatabase.MIGRATION_10_11)
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
@@ -79,4 +79,10 @@ object DatabaseModule {
 
     @Provides
     fun provideCredentialDao(database: ConnectBotDatabase) = database.credentialDao()
+
+    @Provides
+    fun provideConnectionGroupDao(database: ConnectBotDatabase) = database.connectionGroupDao()
+
+    @Provides
+    fun provideCommandHistoryDao(database: ConnectBotDatabase) = database.commandHistoryDao()
 }
