@@ -67,6 +67,12 @@ interface CredentialDao {
     suspend fun delete(credential: Credential)
 
     /**
+     * Delete all credentials.
+     */
+    @Query("DELETE FROM credentials")
+    suspend fun deleteAll()
+
+    /**
      * Get a single credential by ID (one-time query).
      */
     @Query("SELECT * FROM credentials WHERE id = :id")

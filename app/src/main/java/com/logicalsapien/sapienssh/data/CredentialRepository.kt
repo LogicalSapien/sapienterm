@@ -198,4 +198,11 @@ class CredentialRepository @Inject constructor(
     suspend fun delete(credential: Credential) = withContext(dispatchers.io) {
         credentialDao.delete(credential)
     }
+
+    /**
+     * Delete all credentials.
+     */
+    suspend fun deleteAll() = withContext(dispatchers.io) {
+        credentialDao.deleteAll()
+    }
 }

@@ -94,6 +94,12 @@ interface HostDao {
     suspend fun deleteById(hostId: Long)
 
     /**
+     * Delete all hosts.
+     */
+    @Query("DELETE FROM hosts")
+    suspend fun deleteAll()
+
+    /**
      * Find host associated with a known host entry.
      */
     @Query(

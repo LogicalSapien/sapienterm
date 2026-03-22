@@ -89,4 +89,11 @@ class QuickCommandRepository @Inject constructor(
     suspend fun getAll(): List<QuickCommand> = withContext(dispatchers.io) {
         quickCommandDao.getAll()
     }
+
+    /**
+     * Delete all quick commands.
+     */
+    suspend fun deleteAll() = withContext(dispatchers.io) {
+        quickCommandDao.deleteAll()
+    }
 }

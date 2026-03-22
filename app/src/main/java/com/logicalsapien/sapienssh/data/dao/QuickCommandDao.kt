@@ -69,6 +69,12 @@ interface QuickCommandDao {
     suspend fun delete(command: QuickCommand)
 
     /**
+     * Delete all quick commands.
+     */
+    @Query("DELETE FROM quick_commands")
+    suspend fun deleteAll()
+
+    /**
      * Get a single quick command by ID (one-time query).
      */
     @Query("SELECT * FROM quick_commands WHERE id = :id")

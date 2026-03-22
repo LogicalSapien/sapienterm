@@ -151,6 +151,13 @@ class HostRepository @Inject constructor(
     }
 
     /**
+     * Delete all hosts.
+     */
+    suspend fun deleteAllHosts() {
+        hostDao.deleteAll()
+    }
+
+    /**
      * Update the last connected time for a host.
      *
      * @param host The host to update
