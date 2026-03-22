@@ -241,6 +241,12 @@ fun QuickCommandsScreen(
                                 commandToEdit = command
                             },
                             onEdit = { commandToEdit = command },
+                            onDuplicate = {
+                                viewModel.duplicateCommand(command)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Command duplicated")
+                                }
+                            },
                             onDelete = { commandToDelete = command }
                         )
                     }
@@ -313,6 +319,7 @@ private fun SwipeToDismissCommandItem(
     command: QuickCommand,
     onClick: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
@@ -405,7 +412,9 @@ private fun SwipeToDismissCommandItem(
         QuickCommandCard(
             command = command,
             onClick = onClick,
-            onEdit = onEdit
+            onEdit = onEdit,
+            onDuplicate = onDuplicate,
+            onDelete = onDelete
         )
     }
 }

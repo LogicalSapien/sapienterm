@@ -110,6 +110,22 @@ class QuickCommandsViewModel @Inject constructor(
     }
 
     /**
+     * Duplicate a quick command by creating a copy with "(copy)" appended to the title
+     * and a new auto-generated id.
+     */
+    fun duplicateCommand(command: QuickCommand) {
+        viewModelScope.launch {
+            repository.add(
+                command.copy(
+                    id = 0,
+                    title = "${command.title} (copy)",
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    /**
      * Attempt to send a command to the active terminal session.
      * @return true if sent successfully, false if no active session
      */
