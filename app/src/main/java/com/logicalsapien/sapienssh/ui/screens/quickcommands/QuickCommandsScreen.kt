@@ -235,14 +235,10 @@ fun QuickCommandsScreen(
                         SwipeToDismissCommandItem(
                             command = command,
                             onClick = {
-                                val sent = viewModel.sendCommand(command.command)
-                                if (!sent) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            "No active session - connect to a server first"
-                                        )
-                                    }
-                                }
+                                // Tapping opens the edit dialog to view/edit the command.
+                                // Sending to terminal is only done from the QuickCommandToolbar
+                                // in the terminal screen.
+                                commandToEdit = command
                             },
                             onEdit = { commandToEdit = command },
                             onDelete = { commandToDelete = command }
@@ -408,7 +404,8 @@ private fun SwipeToDismissCommandItem(
     ) {
         QuickCommandCard(
             command = command,
-            onClick = onClick
+            onClick = onClick,
+            onEdit = onEdit
         )
     }
 }

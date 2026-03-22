@@ -348,13 +348,18 @@ fun ConsoleScreen(
                 .windowInsetsPadding(WindowInsets.imeAnimationTarget)
         ) {
             // Session tab bar - always visible when bridges exist
+            // Needs top padding equal to titleBarHeight so it's not hidden
+            // behind the overlay TopAppBar
             if (uiState.bridges.isNotEmpty() && !uiState.isLoading) {
                 SessionTabBar(
                     bridges = uiState.bridges,
                     currentIndex = uiState.currentBridgeIndex,
                     onSelectTab = { viewModel.selectBridge(it) },
                     onCloseTab = { bridge -> viewModel.disconnectBridge(bridge) },
-                    onRenameTab = { index, newName -> viewModel.renameTab(index, newName) }
+                    onRenameTab = { index, newName -> viewModel.renameTab(index, newName) },
+                    modifier = Modifier.padding(
+                        top = if (!titleBarHide) titleBarHeight else 0.dp
+                    )
                 )
             }
 
@@ -426,14 +431,10 @@ fun ConsoleScreen(
 
                     val bridge = uiState.bridges[uiState.currentBridgeIndex]
 
-                    // Terminal view fills entire space with insets padding
-                    // to avoid content being cut off by screen curves/notches
+                    // Terminal view fills entire space
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(
-                                top = if (!titleBarHide) titleBarHeight else 0.dp
-                            )
                     ) {
                         // Get font from profile (stored in bridge)
                         val fontResult = rememberTerminalTypefaceResultFromStoredValue(bridge.fontFamily)

@@ -17,10 +17,6 @@
 
 package com.logicalsapien.sapienssh.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,11 +33,12 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -54,8 +51,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,14 +78,13 @@ import androidx.compose.ui.unit.dp
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.service.PromptRequest
 import com.logicalsapien.sapienssh.service.PromptResponse
-import com.logicalsapien.sapienssh.ui.theme.terminal
 
 /**
- * Non-modal inline prompt that appears at the bottom of the screen,
- * similar to the old ConsoleActivity's prompt UI.
+ * Prompt handler that shows all prompts as proper Material Design 3 AlertDialogs
+ * centered on screen, instead of inline overlays at the bottom.
  *
- * Host key fingerprint prompts are shown as a full MD3 AlertDialog
- * with the keyboard hidden for a clean verification experience.
+ * Host key fingerprint prompts, password/string prompts, and boolean prompts
+ * are all shown as full AlertDialogs for a clean, modern experience.
  */
 @Composable
 fun InlinePrompt(
@@ -111,8 +105,7 @@ fun InlinePrompt(
         wasVisible = promptRequest != null
     }
 
-    // Host key fingerprint prompt is shown as a proper dialog (not inline)
-    // This prevents keyboard overlap issues
+    // Host key fingerprint prompt dialog
     if (promptRequest is PromptRequest.HostKeyFingerprintPrompt) {
         HostKeyFingerprintDialog(
             prompt = promptRequest,
@@ -121,103 +114,89 @@ fun InlinePrompt(
         )
     }
 
-    // Other prompts remain inline at the bottom
-    val inlinePrompt = promptRequest?.takeIf { it !is PromptRequest.HostKeyFingerprintPrompt }
+    // String/password prompt dialog
+    if (promptRequest is PromptRequest.StringPrompt) {
+        StringPromptDialog(
+            instructions = promptRequest.instructions,
+            hint = promptRequest.hint,
+            isPassword = promptRequest.isPassword,
+            onSubmit = { value, rememberPassword ->
+                onResponse(PromptResponse.StringResponse(value, rememberPassword))
+            },
+            onCancel = onCancel
+        )
+    }
 
-    AnimatedVisibility(
-        visible = inlinePrompt != null,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
-        modifier = modifier
-    ) {
-        when (inlinePrompt) {
-            is PromptRequest.BooleanPrompt -> {
-                BooleanPromptContent(
-                    instructions = inlinePrompt.instructions,
-                    message = inlinePrompt.message,
-                    onYes = { onResponse(PromptResponse.BooleanResponse(true)) },
-                    onNo = { onResponse(PromptResponse.BooleanResponse(false)) }
-                )
-            }
+    // Boolean prompt dialog
+    if (promptRequest is PromptRequest.BooleanPrompt) {
+        BooleanPromptDialog(
+            instructions = promptRequest.instructions,
+            message = promptRequest.message,
+            onYes = { onResponse(PromptResponse.BooleanResponse(true)) },
+            onNo = { onResponse(PromptResponse.BooleanResponse(false)) }
+        )
+    }
 
-            is PromptRequest.StringPrompt -> {
-                StringPromptContent(
-                    instructions = inlinePrompt.instructions,
-                    hint = inlinePrompt.hint,
-                    isPassword = inlinePrompt.isPassword,
-                    onSubmit = { value, rememberPassword ->
-                        onResponse(PromptResponse.StringResponse(value, rememberPassword))
-                    },
-                    onCancel = onCancel
-                )
-            }
-
-            is PromptRequest.BiometricPrompt -> {
-                // Biometric prompts are handled by BiometricPromptHandler in PromptDialogs.kt
-                // which uses the system BiometricPrompt dialog
-                BiometricPromptHandler(
-                    prompt = inlinePrompt,
-                    onResponse = onResponse
-                )
-            }
-
-            else -> {
-                /* No prompt or HostKeyFingerprintPrompt (handled above as dialog) */
-            }
-        }
+    // Biometric prompts are handled by BiometricPromptHandler which uses
+    // the system BiometricPrompt dialog
+    if (promptRequest is PromptRequest.BiometricPrompt) {
+        BiometricPromptHandler(
+            prompt = promptRequest,
+            onResponse = onResponse
+        )
     }
 }
 
+/**
+ * Material Design 3 AlertDialog for boolean prompts.
+ */
 @Composable
-private fun BooleanPromptContent(
+private fun BooleanPromptDialog(
     instructions: String?,
     message: String,
     onYes: () -> Unit,
     onNo: () -> Unit
 ) {
-    val terminalColors = MaterialTheme.colorScheme.terminal
+    val tealPrimary = Color(0xFF00897B)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(terminalColors.overlayBackground)
-            .padding(16.dp)
-    ) {
-        if (!instructions.isNullOrEmpty()) {
+    AlertDialog(
+        onDismissRequest = onNo,
+        title = {
             Text(
-                text = instructions,
-                style = MaterialTheme.typography.bodyMedium,
-                color = terminalColors.overlayText,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = instructions ?: stringResource(R.string.button_yes) + " / " + stringResource(R.string.button_no),
+                style = MaterialTheme.typography.headlineSmall
             )
-        }
-
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = terminalColors.overlayText,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onNo) {
-                Text(stringResource(R.string.button_no), color = terminalColors.overlayText)
-            }
+        },
+        text = {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
             Button(
                 onClick = onYes,
-                modifier = Modifier.padding(start = 8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tealPrimary
+                )
             ) {
                 Text(stringResource(R.string.button_yes))
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onNo) {
+                Text(stringResource(R.string.button_no))
+            }
         }
-    }
+    )
 }
 
+/**
+ * Material Design 3 AlertDialog for string/password prompts.
+ * Shows a password field with visibility toggle and "Remember password" checkbox for password prompts.
+ */
 @Composable
-private fun StringPromptContent(
+private fun StringPromptDialog(
     instructions: String?,
     hint: String?,
     isPassword: Boolean,
@@ -226,99 +205,118 @@ private fun StringPromptContent(
 ) {
     var text by remember { mutableStateOf("") }
     var rememberPassword by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
-    val terminalColors = MaterialTheme.colorScheme.terminal
+    val tealPrimary = Color(0xFF00897B)
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(terminalColors.overlayBackground)
-            .padding(16.dp)
-    ) {
-        if (!instructions.isNullOrEmpty()) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = {
             Text(
-                text = instructions,
-                style = MaterialTheme.typography.bodyMedium,
-                color = terminalColors.overlayText,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = if (isPassword) {
+                    hint ?: stringResource(R.string.prompt_password).removeSuffix(":")
+                } else {
+                    hint ?: instructions ?: "Input"
+                },
+                style = MaterialTheme.typography.headlineSmall
             )
-        }
-
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            label = hint?.let { { Text(it, color = terminalColors.overlayTextSecondary) } },
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Done,
-                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Unspecified
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    onSubmit(text, rememberPassword)
-                }
-            ),
-            singleLine = true,
-            colors = TextFieldDefaults.colors(
-                focusedTextColor = terminalColors.overlayText,
-                unfocusedTextColor = terminalColors.overlayText,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                cursorColor = terminalColors.overlayText,
-                focusedIndicatorColor = terminalColors.overlayTextSecondary,
-                unfocusedIndicatorColor = terminalColors.overlayTextSecondary.copy(alpha = 0.5f)
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester)
-        )
-
-        if (isPassword) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = rememberPassword,
-                    onCheckedChange = { rememberPassword = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = terminalColors.overlayTextSecondary,
-                        uncheckedColor = terminalColors.overlayTextSecondary,
-                        checkmarkColor = terminalColors.overlayBackground
+        },
+        text = {
+            Column {
+                if (!instructions.isNullOrEmpty()) {
+                    Text(
+                        text = instructions,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
-                )
-                Text(
-                    text = stringResource(R.string.remember_password),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = terminalColors.overlayText,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-        }
+                }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onCancel) {
-                Text(stringResource(R.string.delete_neg), color = terminalColors.overlayText)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = if (isPassword) {
+                        { Text(stringResource(R.string.prompt_password).removeSuffix(":")) }
+                    } else {
+                        hint?.let { { Text(it) } }
+                    },
+                    visualTransformation = if (isPassword && !passwordVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    trailingIcon = if (isPassword) {
+                        {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) {
+                                        Icons.Default.VisibilityOff
+                                    } else {
+                                        Icons.Default.Visibility
+                                    },
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Done,
+                        keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Unspecified
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            onSubmit(text, rememberPassword)
+                        }
+                    ),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                )
+
+                if (isPassword) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = rememberPassword,
+                            onCheckedChange = { rememberPassword = it }
+                        )
+                        Text(
+                            text = stringResource(R.string.remember_password),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
             }
+        },
+        confirmButton = {
             Button(
                 onClick = { onSubmit(text, rememberPassword) },
-                modifier = Modifier.padding(start = 8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tealPrimary
+                )
             ) {
                 Text(stringResource(R.string.button_ok))
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.delete_neg))
+            }
         }
-    }
+    )
 }
 
 /**
