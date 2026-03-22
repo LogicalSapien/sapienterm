@@ -326,6 +326,13 @@ fun ConsoleScreen(
         }
         // Reset the timer for title bar auto-hide
         lastInteractionTime = System.currentTimeMillis()
+
+        // Bring up the soft keyboard when the terminal area is tapped
+        // (unless a hardware keyboard is connected)
+        if (!hasHardwareKeyboard) {
+            showSoftwareKeyboard = true
+            termFocusRequester.requestFocus()
+        }
     }
 
     var titleBarHeight by remember { mutableStateOf(0.dp) }
