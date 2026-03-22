@@ -20,48 +20,46 @@ package com.logicalsapien.sapienssh.ui.screens.hostlist
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Cable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,13 +70,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import com.logicalsapien.sapienssh.R
@@ -88,6 +84,8 @@ import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.components.DisconnectAllDialog
 import com.logicalsapien.sapienssh.ui.components.ShortcutCustomizationDialog
 import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
+import com.logicalsapien.sapienssh.ui.theme.StatusGreen
+import com.logicalsapien.sapienssh.ui.theme.StatusRed
 import com.logicalsapien.sapienssh.util.IconStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -269,6 +267,7 @@ fun HostListScreenContent(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDisconnectAllDialog by remember { mutableStateOf(false) }
+    var hostToDelete by remember { mutableStateOf<Host?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show snackbar when there's an error
@@ -370,8 +369,8 @@ fun HostListScreenContent(
             if (!makingShortcut) {
                 FloatingActionButton(
                     onClick = { onNavigateToEditHost(null) },
-                    // This matches the FloatingActionButtonMenu padding
-                    modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.hostpref_add_host))
                 }
@@ -392,16 +391,26 @@ fun HostListScreenContent(
                 }
 
                 uiState.hosts.isEmpty() -> {
+                    // Enhanced empty state with icon
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Cable,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = stringResource(R.string.empty_hosts_message),
+                            text = stringResource(R.string.empty_connections_cta),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp)
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
                         TextButton(onClick = { onNavigateToEditHost(null) }) {
                             Text(stringResource(R.string.hostpref_add_host))
                         }
@@ -415,7 +424,7 @@ fun HostListScreenContent(
                             start = 16.dp,
                             end = 16.dp,
                             top = 16.dp,
-                            bottom = 104.dp // Extra padding to avoid FAB menu overlap (88dp + 16dp for menu padding)
+                            bottom = 104.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -423,24 +432,24 @@ fun HostListScreenContent(
                             items = uiState.hosts,
                             key = { it.id }
                         ) { host ->
-                            HostListItem(
-                                host = host,
-                                connectionState = uiState.connectionStates[host.id] ?: ConnectionState.UNKNOWN,
-                                onClick = {
-                                    if (makingShortcut) {
-                                        onSelectShortcut(host)
-                                    } else {
-                                        onNavigateToConsole(host)
-                                    }
-                                },
-                                onEdit = { onNavigateToEditHost(host) },
-                                onPortForwards = { onNavigateToPortForwards(host) },
-                                onDuplicate = { onDuplicateHost(host) },
-                                onForgetHostKeys = { onForgetHostKeys(host) },
-                                onDisconnect = { onDisconnectHost(host) },
-                                onDelete = { onDeleteHost(host) },
-                                makingShortcut = makingShortcut
-                            )
+                            val connectionState = uiState.connectionStates[host.id] ?: ConnectionState.UNKNOWN
+
+                            if (makingShortcut) {
+                                // In shortcut mode, just show plain cards without swipe
+                                ConnectionCard(
+                                    host = host,
+                                    connectionState = connectionState,
+                                    onClick = { onSelectShortcut(host) }
+                                )
+                            } else {
+                                SwipeToDismissHostItem(
+                                    host = host,
+                                    connectionState = connectionState,
+                                    onClick = { onNavigateToConsole(host) },
+                                    onEdit = { onNavigateToEditHost(host) },
+                                    onDelete = { hostToDelete = host }
+                                )
+                            }
                         }
                     }
                 }
@@ -457,223 +466,122 @@ fun HostListScreenContent(
             }
         )
     }
+
+    // Delete confirmation dialog
+    hostToDelete?.let { host ->
+        HostDeleteDialog(
+            host = host,
+            onDismiss = { hostToDelete = null },
+            onConfirm = {
+                hostToDelete = null
+                onDeleteHost(host)
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HostListItem(
+private fun SwipeToDismissHostItem(
     host: Host,
     connectionState: ConnectionState,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onPortForwards: () -> Unit,
-    onDuplicate: () -> Unit,
-    onForgetHostKeys: () -> Unit,
-    onDisconnect: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-    makingShortcut: Boolean = false
+    onDelete: () -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showDisconnectDialog by remember { mutableStateOf(false) }
-    var showForgetHostKeysDialog by remember { mutableStateOf(false) }
-
-    // Determine border color based on connection state
-    val borderColor = when (connectionState) {
-        ConnectionState.CONNECTED -> colorResource(R.color.host_green)
-
-        // Green
-        ConnectionState.DISCONNECTED -> colorResource(R.color.host_red)
-
-        // Red
-        ConnectionState.UNKNOWN -> Color.Transparent
-    }
-
-    ListItem(
-        headlineContent = {
-            Text(
-                text = host.nickname,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        supportingContent = {
-            Text("${host.protocol}://${host.hostname}:${host.port}")
-        },
-        leadingContent = {
-            Box(
-                modifier = Modifier.size(40.dp)
-            ) {
-                // Main host icon with colored background and border
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = parseColor(host.color),
-                            shape = CircleShape
-                        )
-                        .border(
-                            width = 3.dp,
-                            color = borderColor,
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = when (host.protocol) {
-                            "ssh" -> Icons.Default.Computer
-                            "telnet" -> Icons.Default.Computer
-                            else -> Icons.Default.Link
-                        },
-                        contentDescription = when (connectionState) {
-                            ConnectionState.CONNECTED -> stringResource(R.string.image_description_connected)
-                            ConnectionState.DISCONNECTED -> stringResource(R.string.image_description_disconnected)
-                            ConnectionState.UNKNOWN -> null
-                        },
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    // Swiped left -> delete (show confirmation dialog)
+                    onDelete()
+                    false // Don't actually dismiss; let the dialog handle it
                 }
-
-                // Status badge icon in lower right corner
-                if (connectionState != ConnectionState.UNKNOWN) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = when (connectionState) {
-                                ConnectionState.CONNECTED -> Icons.Default.CheckCircle
-                                ConnectionState.DISCONNECTED -> Icons.Default.Error
-                                ConnectionState.UNKNOWN -> Icons.Default.Computer // Unreachable
-                            },
-                            contentDescription = null,
-                            tint = when (connectionState) {
-                                ConnectionState.CONNECTED -> colorResource(R.color.host_green)
-                                ConnectionState.DISCONNECTED -> colorResource(R.color.host_red)
-                                ConnectionState.UNKNOWN -> Color.Gray // Unreachable
-                            },
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    // Swiped right -> edit
+                    onEdit()
+                    false // Reset after triggering edit
                 }
+                SwipeToDismissBoxValue.Settled -> false
             }
-        },
-        trailingContent = {
-            if (!makingShortcut) {
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.button_host_options))
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.list_host_edit)) },
-                            onClick = {
-                                showMenu = false
-                                onEdit()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Edit, null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.list_host_portforwards)) },
-                            onClick = {
-                                showMenu = false
-                                onPortForwards()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Link, null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.list_host_duplicate)) },
-                            onClick = {
-                                showMenu = false
-                                onDuplicate()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.ContentCopy, null)
-                            }
-                        )
-                        if (host.protocol == "ssh") {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.list_host_forget_keys)) },
-                                onClick = {
-                                    showMenu = false
-                                    showForgetHostKeysDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Key, null)
-                                }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+
+            val backgroundColor by animateColorAsState(
+                targetValue = when (direction) {
+                    SwipeToDismissBoxValue.EndToStart -> StatusRed.copy(alpha = 0.2f)
+                    SwipeToDismissBoxValue.StartToEnd -> StatusGreen.copy(alpha = 0.2f)
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surface
+                },
+                label = "swipe_bg_color"
+            )
+
+            val iconTint by animateColorAsState(
+                targetValue = when (direction) {
+                    SwipeToDismissBoxValue.EndToStart -> StatusRed
+                    SwipeToDismissBoxValue.StartToEnd -> StatusGreen
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurface
+                },
+                label = "swipe_icon_tint"
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(backgroundColor)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = when (direction) {
+                    SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    SwipeToDismissBoxValue.Settled -> Alignment.CenterStart
+                }
+            ) {
+                when (direction) {
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.swipe_to_delete),
+                                tint = iconTint
+                            )
+                            Text(
+                                text = stringResource(R.string.swipe_to_delete),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = iconTint
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.list_host_disconnect)) },
-                            onClick = {
-                                showMenu = false
-                                showDisconnectDialog = true
-                            },
-                            enabled = connectionState == ConnectionState.CONNECTED,
-                            leadingIcon = {
-                                Icon(Icons.Default.LinkOff, null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.list_host_delete)) },
-                            onClick = {
-                                showMenu = false
-                                showDeleteDialog = true
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Delete, null)
-                            }
-                        )
                     }
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.swipe_to_edit),
+                                tint = iconTint
+                            )
+                            Text(
+                                text = stringResource(R.string.swipe_to_edit),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = iconTint
+                            )
+                        }
+                    }
+                    SwipeToDismissBoxValue.Settled -> { /* nothing */ }
                 }
             }
         },
-        modifier = modifier.clickable(onClick = onClick)
-    )
-    HorizontalDivider()
-
-    if (showDeleteDialog) {
-        HostDeleteDialog(
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        ConnectionCard(
             host = host,
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                showDeleteDialog = false
-                onDelete()
-            }
-        )
-    }
-
-    if (showDisconnectDialog) {
-        HostDisconnectDialog(
-            host = host,
-            onDismiss = { showDisconnectDialog = false },
-            onConfirm = {
-                showDisconnectDialog = false
-                onDisconnect()
-            }
-        )
-    }
-
-    if (showForgetHostKeysDialog) {
-        ForgetHostKeysDialog(
-            host = host,
-            onDismiss = { showForgetHostKeysDialog = false },
-            onConfirm = {
-                showForgetHostKeysDialog = false
-                onForgetHostKeys()
-            }
+            connectionState = connectionState,
+            onClick = onClick
         )
     }
 }
@@ -703,70 +611,6 @@ private fun HostDeleteDialog(
             }
         }
     )
-}
-
-@Composable
-private fun HostDisconnectDialog(
-    host: Host,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.list_host_disconnect)) },
-        text = {
-            Text(stringResource(R.string.disconnect_host_alert, host.nickname))
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
-                Text(stringResource(R.string.button_yes))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_no))
-            }
-        }
-    )
-}
-
-@Composable
-private fun ForgetHostKeysDialog(
-    host: Host,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.list_host_forget_keys)) },
-        text = {
-            Text(stringResource(R.string.forget_host_keys_confirm, host.nickname))
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
-                Text(stringResource(R.string.button_yes))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.button_no))
-            }
-        }
-    )
-}
-
-@Composable
-private fun parseColor(colorString: String?): Color {
-    if (colorString.isNullOrBlank()) {
-        return colorResource(R.color.host_blue)
-    } else {
-        val colorInt = colorString.toColorInt()
-        return Color(colorInt)
-    }
 }
 
 @PreviewScreen
@@ -862,7 +706,8 @@ private fun HostListScreenPopulatedPreview() {
                         username = "root",
                         hostname = "prod.example.com",
                         port = 22,
-                        color = "#4CAF50"
+                        color = "#4CAF50",
+                        lastConnect = System.currentTimeMillis() - 7200000
                     ),
                     Host(
                         id = 2,
@@ -871,7 +716,8 @@ private fun HostListScreenPopulatedPreview() {
                         username = "developer",
                         hostname = "dev.example.com",
                         port = 2222,
-                        color = "#2196F3"
+                        color = "#2196F3",
+                        lastConnect = System.currentTimeMillis() - 86400000
                     ),
                     Host(
                         id = 3,

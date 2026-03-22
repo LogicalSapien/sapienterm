@@ -1005,6 +1005,13 @@
 	<!-- Empty state messages -->
 	<!-- Message shown when no hosts have been configured yet -->
 	<string name="empty_hosts_message">No hosts configured</string>
+	<!-- Empty state call-to-action text shown when no connections exist -->
+	<string name="empty_connections_cta">Add your first connection</string>
+	<!-- Relative time format: never connected -->
+	<string name="last_connected_never">Never</string>
+	<!-- Swipe action labels -->
+	<string name="swipe_to_delete">Delete</string>
+	<string name="swipe_to_edit">Edit</string>
 	<!-- Message shown when no public keys have been generated or imported yet -->
 	<string name="empty_pubkeys_message">No keys found.</string>
 	<!-- Message shown when no port forwards have been configured for a host -->
