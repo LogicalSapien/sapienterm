@@ -54,6 +54,40 @@ import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.service.TerminalBridge
 
 /**
+ * Compute a meaningful display name for a terminal session tab.
+ *
+ * Priority order:
+ * 1. Custom tab name (user-set rename)
+ * 2. Host nickname, if it looks like a real connection identifier
+ *    (not the app name and not blank)
+ * 3. Fallback: "username@hostname" built from the host fields
+ */
+internal fun getTabDisplayName(bridge: TerminalBridge): String {
+    bridge.customTabName?.let { return it }
+
+    val nickname = bridge.host.nickname
+    // If the nickname is blank or matches the app name, build a fallback
+    if (nickname.isNotBlank()
+        && !nickname.equals("SapienSSH", ignoreCase = true)
+        && !nickname.equals("SapienSsh", ignoreCase = true)
+    ) {
+        return nickname
+    }
+
+    // Build fallback from username + hostname
+    val host = bridge.host
+    return when {
+        host.username.isNotBlank() && host.hostname.isNotBlank() ->
+            "${host.username}@${host.hostname}"
+        host.hostname.isNotBlank() -> host.hostname
+        host.username.isNotBlank() -> host.username
+        // Last resort: use nickname even if it's the app name
+        nickname.isNotBlank() -> nickname
+        else -> "Terminal"
+    }
+}
+
+/**
  * Horizontal scrollable tab bar for switching between terminal sessions.
  *
  * Each tab shows the connection nickname (or custom name) and a close button.
@@ -83,7 +117,7 @@ fun SessionTabBar(
     ) {
         bridges.forEachIndexed { index, bridge ->
             val isSelected = index == currentIndex
-            val displayName = bridge.customTabName ?: bridge.host.nickname
+            val displayName = getTabDisplayName(bridge)
             SessionTab(
                 nickname = displayName,
                 isSelected = isSelected,
@@ -97,7 +131,7 @@ fun SessionTabBar(
     // Rename dialog
     renameDialogIndex?.let { index ->
         val bridge = bridges.getOrNull(index) ?: return@let
-        val currentName = bridge.customTabName ?: bridge.host.nickname
+        val currentName = getTabDisplayName(bridge)
         RenameTabDialog(
             currentName = currentName,
             onDismiss = { renameDialogIndex = null },

@@ -73,6 +73,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -433,121 +434,129 @@ fun ConsoleScreen(
                 }
 
                 uiState.bridges.isNotEmpty() -> {
-                    // TODO(Terminal): Re-implement support for switching between terminals
-                    // For now, just show the current bridge directly without HorizontalPager
-                    // to avoid accessibility issues. Maybe a tab strip across the top for
-                    // small screen devices and a list of hosts on the left for large screen.
+                    // Use key() to force full recreation of the Terminal composable
+                    // when switching tabs. Without this, Compose may reuse the
+                    // existing Terminal instance which keeps the old bridge's
+                    // terminalEmulator and keyHandler bound, so keyboard input
+                    // goes to the wrong session.
+                    key(uiState.currentBridgeIndex) {
+                        val bridge = uiState.bridges[uiState.currentBridgeIndex]
 
-                    val bridge = uiState.bridges[uiState.currentBridgeIndex]
-
-                    // Terminal view fills entire space
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        // Get font from profile (stored in bridge)
-                        val fontResult = rememberTerminalTypefaceResultFromStoredValue(bridge.fontFamily)
-                        val coroutineScope = rememberCoroutineScope()
-                        // Observe font size changes for reactive updates
-                        val fontSize by bridge.fontSizeFlow.collectAsState()
-
-                        // Show snackbar if font loading failed
-                        LaunchedEffect(fontResult.loadFailed, fontResult.isLoading) {
-                            if (fontResult.loadFailed && !fontResult.isLoading) {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Failed to load font '${fontResult.requestedFontName}'. Using system default."
-                                    )
-                                }
-                            }
+                        // Request focus on the terminal after tab switch
+                        // so keyboard input goes to the newly active bridge
+                        LaunchedEffect(Unit) {
+                            termFocusRequester.requestFocus()
                         }
 
-                        Terminal(
-                            terminalEmulator = bridge.terminalEmulator,
+                        // Terminal view fills entire space
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize(),
-                            typeface = fontResult.typeface,
-                            initialFontSize = fontSize.sp,
-                            keyboardEnabled = true,
-                            showSoftKeyboard = showSoftwareKeyboard,
-                            focusRequester = termFocusRequester,
-                            forcedSize = forceSize,
-                            modifierManager = bridge.keyHandler,
-                            onSelectionControllerAvailable = { selectionController = it },
-                            onTerminalTap = { handleTerminalInteraction() },
-                            onImeVisibilityChanged = { visible ->
-                                imeVisible = visible
-                            },
-                            onHyperlinkClick = { url ->
-                                // Open OSC8 hyperlink in browser
-                                val intent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    url.toUri()
-                                )
-                                context.startActivity(intent)
-                            }
-                        )
-
-                        // Set up text input request callback from bridge (for camera button)
-                        SideEffect {
-                            bridge.onTextInputRequested = {
-                                showTextInputDialog = true
-                            }
-                        }
-
-                        // Show inline prompts from the current bridge (non-modal at bottom)
-                        val promptState by bridge.promptManager.promptState.collectAsState()
-
-                        InlinePrompt(
-                            promptRequest = promptState,
-                            onResponse = { response ->
-                                bridge.promptManager.respond(response)
-                            },
-                            onCancel = {
-                                bridge.promptManager.cancelPrompt()
-                            },
-                            onDismiss = {
-                                termFocusRequester.requestFocus()
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                        )
-
-                        // Show reconnect/close overlay when session is disconnected
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = disconnected,
-                            enter = slideInVertically(initialOffsetY = { it }),
-                            exit = slideOutVertically(targetOffsetY = { it }),
-                            modifier = Modifier.align(Alignment.BottomCenter)
+                                .fillMaxSize()
                         ) {
-                            val terminalColors = MaterialTheme.colorScheme.terminal
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(terminalColors.overlayBackground)
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.alert_disconnect_msg),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = terminalColors.overlayText,
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    TextButton(onClick = { showDisconnectDialog = true }) {
-                                        Text(
-                                            stringResource(R.string.console_menu_close),
-                                            color = terminalColors.overlayText
+                            // Get font from profile (stored in bridge)
+                            val fontResult = rememberTerminalTypefaceResultFromStoredValue(bridge.fontFamily)
+                            val coroutineScope = rememberCoroutineScope()
+                            // Observe font size changes for reactive updates
+                            val fontSize by bridge.fontSizeFlow.collectAsState()
+
+                            // Show snackbar if font loading failed
+                            LaunchedEffect(fontResult.loadFailed, fontResult.isLoading) {
+                                if (fontResult.loadFailed && !fontResult.isLoading) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Failed to load font '${fontResult.requestedFontName}'. Using system default."
                                         )
                                     }
-                                    Button(
-                                        onClick = { viewModel.reconnect(bridge) },
-                                        modifier = Modifier.padding(start = 8.dp)
+                                }
+                            }
+
+                            Terminal(
+                                terminalEmulator = bridge.terminalEmulator,
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                typeface = fontResult.typeface,
+                                initialFontSize = fontSize.sp,
+                                keyboardEnabled = true,
+                                showSoftKeyboard = showSoftwareKeyboard,
+                                focusRequester = termFocusRequester,
+                                forcedSize = forceSize,
+                                modifierManager = bridge.keyHandler,
+                                onSelectionControllerAvailable = { selectionController = it },
+                                onTerminalTap = { handleTerminalInteraction() },
+                                onImeVisibilityChanged = { visible ->
+                                    imeVisible = visible
+                                },
+                                onHyperlinkClick = { url ->
+                                    // Open OSC8 hyperlink in browser
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        url.toUri()
+                                    )
+                                    context.startActivity(intent)
+                                }
+                            )
+
+                            // Set up text input request callback from bridge (for camera button)
+                            SideEffect {
+                                bridge.onTextInputRequested = {
+                                    showTextInputDialog = true
+                                }
+                            }
+
+                            // Show inline prompts from the current bridge (non-modal at bottom)
+                            val promptState by bridge.promptManager.promptState.collectAsState()
+
+                            InlinePrompt(
+                                promptRequest = promptState,
+                                onResponse = { response ->
+                                    bridge.promptManager.respond(response)
+                                },
+                                onCancel = {
+                                    bridge.promptManager.cancelPrompt()
+                                },
+                                onDismiss = {
+                                    termFocusRequester.requestFocus()
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                            )
+
+                            // Show reconnect/close overlay when session is disconnected
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = disconnected,
+                                enter = slideInVertically(initialOffsetY = { it }),
+                                exit = slideOutVertically(targetOffsetY = { it }),
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            ) {
+                                val terminalColors = MaterialTheme.colorScheme.terminal
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(terminalColors.overlayBackground)
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.alert_disconnect_msg),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = terminalColors.overlayText,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End
                                     ) {
-                                        Text(stringResource(R.string.console_menu_reconnect))
+                                        TextButton(onClick = { showDisconnectDialog = true }) {
+                                            Text(
+                                                stringResource(R.string.console_menu_close),
+                                                color = terminalColors.overlayText
+                                            )
+                                        }
+                                        Button(
+                                            onClick = { viewModel.reconnect(bridge) },
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        ) {
+                                            Text(stringResource(R.string.console_menu_reconnect))
+                                        }
                                     }
                                 }
                             }
@@ -670,7 +679,7 @@ fun ConsoleScreen(
         }
 
         if (showRenameSessionDialog && currentBridge != null) {
-            val currentName = currentBridge.customTabName ?: currentBridge.host.nickname
+            val currentName = getTabDisplayName(currentBridge)
             RenameSessionDialog(
                 currentName = currentName,
                 onDismiss = {
@@ -692,7 +701,7 @@ fun ConsoleScreen(
             TopAppBar(
                 title = {
                     Text(
-                        currentBridge?.host?.nickname
+                        currentBridge?.let { getTabDisplayName(it) }
                             ?: stringResource(R.string.console_default_title),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
