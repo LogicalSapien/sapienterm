@@ -102,6 +102,7 @@ class SSH :
     private var interactiveCanContinue = true
     private var savedPasswordTried = false
     private var credentialTried = false
+    private var lastInteractivePassword: String? = null
 
     private var connection: Connection? = null
     private val jumpConnections: MutableList<Connection> = mutableListOf()
@@ -402,6 +403,12 @@ class SSH :
                 bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_ki))
                 interactiveCanContinue = false
                 if (connection?.authenticateWithKeyboardInteractive(currentHost.username, this) == true) {
+                    // Save password if user checked "Remember password" during interactive auth
+                    // We need to retrieve the last password from the challenge responses
+                    lastInteractivePassword?.let { pw ->
+                        savePasswordIfRequested(currentHost, pw)
+                        lastInteractivePassword = null
+                    }
                     finishConnection()
                 } else {
                     bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_ki_fail))
@@ -426,8 +433,8 @@ class SSH :
                     true
                 )
                 if (password != null && connection?.authenticateWithPassword(currentHost.username, password) == true) {
-                    // Offer to save the password if not already saved
-                    offerSavePassword(currentHost, password)
+                    // Save password if user checked "Remember password"
+                    savePasswordIfRequested(currentHost, password)
                     finishConnection()
                 } else {
                     bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_pass_fail))
@@ -692,36 +699,35 @@ class SSH :
     }
 
     /**
-     * Offer the user the option to save the password to the Credentials vault.
-     * Only offers if there is no saved password and no linked credential already.
+     * Save the password to the Credentials vault and link it to the host,
+     * if the user checked "Remember password" on the prompt.
      */
-    private fun offerSavePassword(currentHost: Host, password: String) {
-        // Skip if there is already a saved password or a linked credential
-        val alreadySaved = manager?.securePasswordStorage?.getPassword(currentHost.id) != null
-        if (alreadySaved || currentHost.credentialId != null) return
+    private fun savePasswordIfRequested(currentHost: Host, password: String) {
+        val shouldSave = bridge?.promptManager?.rememberPasswordRequested == true
+        if (!shouldSave) return
 
-        try {
-            val save = bridge?.requestBooleanPrompt(
-                null,
-                manager?.res?.getString(R.string.save_password_prompt) ?: "Save password to Credentials?"
-            )
-            if (save == true) {
-                val credentialRepo = manager?.credentialRepository ?: return
-                runBlocking {
-                    try {
-                        credentialRepo.savePassword(
-                            label = currentHost.nickname,
-                            password = password
-                        )
-                        bridge?.outputLine(manager?.res?.getString(R.string.password_saved))
-                    } catch (e: Exception) {
-                        Timber.e(e, "Failed to save password to credential vault")
-                        bridge?.outputLine(manager?.res?.getString(R.string.password_save_failed))
-                    }
-                }
+        // Skip if there is already a linked credential
+        if (currentHost.credentialId != null) return
+
+        val credentialRepo = manager?.credentialRepository ?: return
+        val hostRepo = manager?.hostRepository ?: return
+
+        runBlocking {
+            try {
+                val credentialId = credentialRepo.savePassword(
+                    label = currentHost.nickname,
+                    password = password
+                )
+                // Link the credential to the host
+                val updatedHost = currentHost.copy(credentialId = credentialId)
+                hostRepo.saveHost(updatedHost)
+                // Update the in-memory host reference
+                host = updatedHost
+                bridge?.outputLine(manager?.res?.getString(R.string.password_saved))
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to save password to credential vault")
+                bridge?.outputLine(manager?.res?.getString(R.string.password_save_failed))
             }
-        } catch (e: Exception) {
-            Timber.w(e, "Password save prompt cancelled or failed")
         }
     }
 
@@ -1391,7 +1397,11 @@ class SSH :
                 }
             }
 
-            bridge?.requestStringPrompt(instruction, prompt[i], isPassword) ?: ""
+            val response = bridge?.requestStringPrompt(instruction, prompt[i], isPassword) ?: ""
+            if (isPassword && response.isNotEmpty()) {
+                lastInteractivePassword = response
+            }
+            response
         }
         return responses
     }

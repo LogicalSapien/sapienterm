@@ -34,6 +34,14 @@ class PromptManager {
     private var currentDeferred: CompletableDeferred<PromptResponse>? = null
 
     /**
+     * Flag set to true when the user checked "Remember password" on the last password prompt.
+     * Cleared each time a new string prompt is requested.
+     */
+    @Volatile
+    var rememberPasswordRequested: Boolean = false
+        private set
+
+    /**
      * Request a boolean prompt (yes/no dialog)
      */
     suspend fun requestBooleanPrompt(
@@ -64,6 +72,8 @@ class PromptManager {
         hint: String?,
         isPassword: Boolean = false
     ): String? {
+        rememberPasswordRequested = false
+
         val deferred = CompletableDeferred<PromptResponse>()
         currentDeferred = deferred
 
@@ -78,7 +88,11 @@ class PromptManager {
         val response = deferred.await()
         _promptState.update { null }
 
-        return (response as? PromptResponse.StringResponse)?.value
+        val stringResponse = response as? PromptResponse.StringResponse
+        if (stringResponse != null) {
+            rememberPasswordRequested = stringResponse.rememberPassword
+        }
+        return stringResponse?.value
     }
 
     /**
@@ -219,6 +233,6 @@ sealed class PromptRequest {
  */
 sealed class PromptResponse {
     data class BooleanResponse(val value: Boolean) : PromptResponse()
-    data class StringResponse(val value: String?) : PromptResponse()
+    data class StringResponse(val value: String?, val rememberPassword: Boolean = false) : PromptResponse()
     data class BiometricResponse(val success: Boolean) : PromptResponse()
 }

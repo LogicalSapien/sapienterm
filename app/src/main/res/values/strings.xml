@@ -1478,4 +1478,8 @@
 	<string name="password_saved">Password saved to Credentials</string>
 	<!-- Password save failed message -->
 	<string name="password_save_failed">Failed to save password</string>
+	<!-- Remember password checkbox label on password prompt -->
+	<string name="remember_password">Remember password</string>
+	<!-- Rename session menu item in terminal overflow menu -->
+	<string name="console_menu_rename_session">Rename session</string>
 </resources>

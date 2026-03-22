@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -143,7 +145,9 @@ fun InlinePrompt(
                     instructions = inlinePrompt.instructions,
                     hint = inlinePrompt.hint,
                     isPassword = inlinePrompt.isPassword,
-                    onSubmit = { value -> onResponse(PromptResponse.StringResponse(value)) },
+                    onSubmit = { value, rememberPassword ->
+                        onResponse(PromptResponse.StringResponse(value, rememberPassword))
+                    },
                     onCancel = onCancel
                 )
             }
@@ -217,10 +221,11 @@ private fun StringPromptContent(
     instructions: String?,
     hint: String?,
     isPassword: Boolean,
-    onSubmit: (String) -> Unit,
+    onSubmit: (String, Boolean) -> Unit,
     onCancel: () -> Unit
 ) {
     var text by remember { mutableStateOf("") }
+    var rememberPassword by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val terminalColors = MaterialTheme.colorScheme.terminal
 
@@ -254,7 +259,7 @@ private fun StringPromptContent(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    onSubmit(text)
+                    onSubmit(text, rememberPassword)
                 }
             ),
             singleLine = true,
@@ -272,6 +277,31 @@ private fun StringPromptContent(
                 .focusRequester(focusRequester)
         )
 
+        if (isPassword) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = rememberPassword,
+                    onCheckedChange = { rememberPassword = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = terminalColors.overlayTextSecondary,
+                        uncheckedColor = terminalColors.overlayTextSecondary,
+                        checkmarkColor = terminalColors.overlayBackground
+                    )
+                )
+                Text(
+                    text = stringResource(R.string.remember_password),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = terminalColors.overlayText,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -282,7 +312,7 @@ private fun StringPromptContent(
                 Text(stringResource(R.string.delete_neg), color = terminalColors.overlayText)
             }
             Button(
-                onClick = { onSubmit(text) },
+                onClick = { onSubmit(text, rememberPassword) },
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 Text(stringResource(R.string.button_ok))

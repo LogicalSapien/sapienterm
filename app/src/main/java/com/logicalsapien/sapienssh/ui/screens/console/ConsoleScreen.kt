@@ -61,6 +61,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
@@ -180,6 +181,7 @@ fun ConsoleScreen(
     var showResizeDialog by remember { mutableStateOf(false) }
     var showDisconnectDialog by remember { mutableStateOf(false) }
     var showTextInputDialog by remember { mutableStateOf(false) }
+    var showRenameSessionDialog by remember { mutableStateOf(false) }
     var showExtraKeyboard by remember { mutableStateOf(true) } // Start visible to show animation
     var hasPlayedKeyboardAnimation by remember { mutableStateOf(false) }
     var showTitleBar by remember { mutableStateOf(!titleBarHide) }
@@ -657,6 +659,22 @@ fun ConsoleScreen(
             )
         }
 
+        if (showRenameSessionDialog && currentBridge != null) {
+            val currentName = currentBridge.customTabName ?: currentBridge.host.nickname
+            RenameSessionDialog(
+                currentName = currentName,
+                onDismiss = {
+                    showRenameSessionDialog = false
+                    termFocusRequester.requestFocus()
+                },
+                onConfirm = { newName ->
+                    viewModel.renameTab(uiState.currentBridgeIndex, newName)
+                    showRenameSessionDialog = false
+                    termFocusRequester.requestFocus()
+                }
+            )
+        }
+
         // Overlay TopAppBar - always visible when titleBarHide is false,
         // or temporarily visible when titleBarHide is true and showTitleBar is true
         if (!titleBarHide || showTitleBar) {
@@ -691,17 +709,6 @@ fun ConsoleScreen(
                     TopAppBarDefaults.topAppBarColors()
                 },
                 actions = {
-                    // Text Input button
-                    IconButton(
-                        onClick = { showTextInputDialog = true },
-                        enabled = currentBridge != null
-                    ) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.console_menu_text_input)
-                        )
-                    }
-
                     // Paste button - always visible
                     IconButton(
                         onClick = {
@@ -777,6 +784,19 @@ fun ConsoleScreen(
                                 leadingIcon = {
                                     Icon(Icons.Default.LinkOff, null)
                                 }
+                            )
+
+                            // Rename session
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.console_menu_rename_session)) },
+                                onClick = {
+                                    showMenu = false
+                                    showRenameSessionDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                },
+                                enabled = currentBridge != null
                             )
 
                             // URL Scan
@@ -906,6 +926,44 @@ private fun HostDisconnectDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_no))
+            }
+        }
+    )
+}
+
+@Composable
+private fun RenameSessionDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.rename_tab_title))
+        },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.rename_tab_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank()
+            ) {
+                Text(stringResource(R.string.button_ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.delete_neg))
             }
         }
     )
