@@ -216,33 +216,38 @@ class ConsoleViewModel @Inject constructor(
     }
 
     private fun updateBridges(allBridges: List<TerminalBridge>) {
+        // Deduplicate bridges by host ID to prevent duplicate tabs when
+        // TerminalManager emits the same bridge more than once (e.g. during
+        // reconnect or when multiple bridge objects exist for the same host).
+        val bridges = allBridges.distinctBy { it.host.id }
+
         _uiState.update {
             val newIndex = if (!initialBridgeSelected && hostId != -1L) {
                 // First time: select the bridge matching the hostId from navigation
-                val targetIndex = allBridges.indexOfFirst { bridge -> bridge.host.id == hostId }
+                val targetIndex = bridges.indexOfFirst { bridge -> bridge.host.id == hostId }
                 if (targetIndex >= 0) {
                     initialBridgeSelected = true
                     targetIndex
                 } else {
                     // Target bridge not yet available, keep current index
-                    it.currentBridgeIndex.coerceIn(0, (allBridges.size - 1).coerceAtLeast(0))
+                    it.currentBridgeIndex.coerceIn(0, (bridges.size - 1).coerceAtLeast(0))
                 }
-            } else if (it.currentBridgeIndex >= allBridges.size) {
+            } else if (it.currentBridgeIndex >= bridges.size) {
                 // Adjust index if it's now out of range (e.g., a bridge was closed)
-                (allBridges.size - 1).coerceAtLeast(0)
+                (bridges.size - 1).coerceAtLeast(0)
             } else {
                 it.currentBridgeIndex
             }
 
             // Stop loading when the target bridge is available (or when hostId == -1)
             val targetBridgeAvailable = if (hostId != -1L) {
-                allBridges.any { bridge -> bridge.host.id == hostId }
+                bridges.any { bridge -> bridge.host.id == hostId }
             } else {
                 true
             }
 
             it.copy(
-                bridges = allBridges,
+                bridges = bridges,
                 currentBridgeIndex = newIndex,
                 isLoading = if (targetBridgeAvailable) false else it.isLoading,
                 error = null

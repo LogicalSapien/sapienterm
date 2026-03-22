@@ -54,36 +54,87 @@ import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.service.TerminalBridge
 
 /**
- * Compute a meaningful display name for a terminal session tab.
+ * Maximum number of characters for a tab display name before truncation.
+ */
+private const val MAX_TAB_NAME_LENGTH = 18
+
+/**
+ * Compute a short, readable display name for a single terminal session tab.
  *
  * Priority order:
- * 1. Custom tab name (user-set rename)
- * 2. Host nickname, if it looks like a real connection identifier
- *    (not the app name and not blank)
- * 3. Fallback: "username@hostname" built from the host fields
+ * 1. Custom tab name (user-set rename) -- returned as-is (already short by
+ *    convention).
+ * 2. First segment of the hostname (e.g. "macbook" from
+ *    "macbook.cheetah-balance.ts.net"). If the hostname is an IP address the
+ *    full IP is used.
+ * 3. Fallback: host nickname or "Terminal".
+ *
+ * The result is truncated to [MAX_TAB_NAME_LENGTH] characters so tabs stay
+ * compact even with long hostnames.
  */
 internal fun getTabDisplayName(bridge: TerminalBridge): String {
     bridge.customTabName?.let { return it }
 
-    val nickname = bridge.host.nickname
-    // If the nickname is blank or matches the app name, build a fallback
-    if (nickname.isNotBlank()
-        && !nickname.equals("SapienSSH", ignoreCase = true)
-        && !nickname.equals("SapienSsh", ignoreCase = true)
-    ) {
-        return nickname
+    val host = bridge.host
+    val nickname = host.nickname
+
+    // Derive a short hostname: take the first DNS label unless it looks like
+    // an IP address (contains only digits and dots).
+    val rawHostname = host.hostname
+    val shortHost = when {
+        rawHostname.isBlank() -> null
+        rawHostname.matches(Regex("""\d+\.\d+\.\d+\.\d+""")) -> rawHostname
+        rawHostname.contains('.') -> rawHostname.substringBefore('.')
+        else -> rawHostname
     }
 
-    // Build fallback from username + hostname
-    val host = bridge.host
-    return when {
-        host.username.isNotBlank() && host.hostname.isNotBlank() ->
-            "${host.username}@${host.hostname}"
-        host.hostname.isNotBlank() -> host.hostname
+    // Pick the best raw name (before truncation)
+    val rawName = when {
+        // Prefer a meaningful nickname that isn't the app name
+        nickname.isNotBlank()
+            && !nickname.equals("SapienSSH", ignoreCase = true)
+            && !nickname.equals("SapienSsh", ignoreCase = true) -> {
+            // Even for nicknames, try to shorten "user@long.host.name" style
+            if ('@' in nickname && shortHost != null) shortHost else nickname
+        }
+        shortHost != null -> shortHost
         host.username.isNotBlank() -> host.username
-        // Last resort: use nickname even if it's the app name
         nickname.isNotBlank() -> nickname
         else -> "Terminal"
+    }
+
+    // Truncate long names with an ellipsis
+    return if (rawName.length > MAX_TAB_NAME_LENGTH) {
+        rawName.take(MAX_TAB_NAME_LENGTH - 1) + "\u2026"
+    } else {
+        rawName
+    }
+}
+
+/**
+ * Build display names for a list of bridges, appending a disambiguation
+ * suffix (" (2)", " (3)", ...) when two or more bridges would otherwise
+ * have the same tab name.
+ */
+private fun buildTabDisplayNames(bridges: List<TerminalBridge>): List<String> {
+    val rawNames = bridges.map { getTabDisplayName(it) }
+
+    // Count how many times each raw name appears
+    val counts = mutableMapOf<String, Int>()
+    val seen = mutableMapOf<String, Int>()
+
+    for (name in rawNames) {
+        counts[name] = (counts[name] ?: 0) + 1
+    }
+
+    return rawNames.map { name ->
+        if ((counts[name] ?: 0) > 1) {
+            val idx = (seen[name] ?: 0) + 1
+            seen[name] = idx
+            "$name ($idx)"
+        } else {
+            name
+        }
     }
 }
 
@@ -105,6 +156,9 @@ fun SessionTabBar(
 ) {
     var renameDialogIndex by remember { mutableStateOf<Int?>(null) }
 
+    // Pre-compute display names with disambiguation for duplicate hostnames
+    val displayNames = remember(bridges) { buildTabDisplayNames(bridges) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -117,7 +171,7 @@ fun SessionTabBar(
     ) {
         bridges.forEachIndexed { index, bridge ->
             val isSelected = index == currentIndex
-            val displayName = getTabDisplayName(bridge)
+            val displayName = displayNames.getOrElse(index) { getTabDisplayName(bridge) }
             SessionTab(
                 nickname = displayName,
                 isSelected = isSelected,
