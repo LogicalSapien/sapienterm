@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -337,7 +337,7 @@ fun PubkeyEditorScreenContent(
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenLoadingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 isLoading = true
@@ -357,7 +357,7 @@ private fun PubkeyEditorScreenLoadingPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenErrorPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 isLoading = false,
@@ -378,7 +378,7 @@ private fun PubkeyEditorScreenErrorPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenUnencryptedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 nickname = "work-laptop",
@@ -403,7 +403,7 @@ private fun PubkeyEditorScreenUnencryptedPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenEncryptedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 nickname = "home-server",
@@ -429,7 +429,7 @@ private fun PubkeyEditorScreenEncryptedPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenPasswordMismatchPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 nickname = "github-key",
@@ -457,7 +457,7 @@ private fun PubkeyEditorScreenPasswordMismatchPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyEditorScreenWrongPasswordPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyEditorScreenContent(
             uiState = PubkeyEditorUiState(
                 nickname = "production",

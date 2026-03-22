@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.data.migration.MigrationState
 import com.logicalsapien.sapienssh.data.migration.MigrationStatus
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 /**
  * Full-screen UI shown during database migration.
@@ -381,7 +381,7 @@ private fun MigrationFailedContent(
 @PreviewScreen
 @Composable
 private fun MigrationScreenCheckingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         MigrationScreen(
             uiState = MigrationUiState.Checking,
             onRetry = {}
@@ -392,7 +392,7 @@ private fun MigrationScreenCheckingPreview() {
 @PreviewScreen
 @Composable
 private fun MigrationScreenInProgressPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         MigrationScreen(
             uiState = MigrationUiState.InProgress(
                 state = MigrationState(
@@ -417,7 +417,7 @@ private fun MigrationScreenInProgressPreview() {
 @PreviewScreen
 @Composable
 private fun MigrationScreenInProgressEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         MigrationScreen(
             uiState = MigrationUiState.InProgress(
                 state = MigrationState(
@@ -438,7 +438,7 @@ private fun MigrationScreenInProgressEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun MigrationScreenFailedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         MigrationScreen(
             uiState = MigrationUiState.Failed(
                 error = "Database corruption detected",

@@ -79,7 +79,7 @@ import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.data.entity.ColorScheme
 import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.common.getLocalizedColorSchemeDescription
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 /**
  * Screen for managing color schemes (create, duplicate, delete).
@@ -370,7 +370,7 @@ fun ColorsScreenContent(
 @PreviewScreen
 @Composable
 private fun ColorsScreenEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         ColorsScreenContent(
             uiState = SchemeManagerUiState(
                 schemes = emptyList(),
@@ -395,7 +395,7 @@ private fun ColorsScreenEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun ColorsScreenLoadingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         ColorsScreenContent(
             uiState = SchemeManagerUiState(
                 schemes = emptyList(),
@@ -420,7 +420,7 @@ private fun ColorsScreenLoadingPreview() {
 @PreviewScreen
 @Composable
 private fun ColorsScreenPopulatedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         ColorsScreenContent(
             uiState = SchemeManagerUiState(
                 schemes = listOf(

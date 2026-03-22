@@ -28,7 +28,7 @@ import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.service.TerminalManager
 import com.logicalsapien.sapienssh.ui.navigation.ConnectBotNavHost
 import com.logicalsapien.sapienssh.ui.navigation.NavDestinations
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.IconStyle
 
 val LocalTerminalManager = compositionLocalOf<TerminalManager?> {
@@ -48,7 +48,7 @@ fun ConnectBotApp(
     onNavigateToConsole: (Host) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ConnectBotTheme {
+    SapienSSHTheme {
         when (appUiState) {
             is AppUiState.Loading -> {
                 LoadingScreen(modifier = modifier)

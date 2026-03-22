@@ -38,7 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 data class Hint(
     val title: String,
@@ -142,7 +142,7 @@ fun HintsScreen(
 @PreviewScreen
 @Composable
 private fun HintsScreenPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HintsScreen(
             onNavigateBack = {}
         )

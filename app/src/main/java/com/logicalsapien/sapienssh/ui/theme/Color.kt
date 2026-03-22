@@ -1,6 +1,7 @@
 /*
- * ConnectBot: simple, powerful, open-source SSH client for Android
+ * SapienSSH: simple, powerful, open-source SSH client for Android
  * Copyright 2025 Kenny Root
+ * Copyright 2026 LogicalSapien
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,56 +20,66 @@ package com.logicalsapien.sapienssh.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val md_theme_light_primary = Color(0xFF03A9F4)
+// ── Dark Theme Colors (default) ──
+val md_theme_dark_primary = Color(0xFF00BCD4)            // Electric Teal
+val md_theme_dark_onPrimary = Color(0xFF003739)
+val md_theme_dark_primaryContainer = Color(0xFF004F54)
+val md_theme_dark_onPrimaryContainer = Color(0xFF6FF7FF)
+val md_theme_dark_secondary = Color(0xFF2196F3)           // Blue
+val md_theme_dark_onSecondary = Color(0xFF002B4D)
+val md_theme_dark_secondaryContainer = Color(0xFF004075)
+val md_theme_dark_onSecondaryContainer = Color(0xFFCCE5FF)
+val md_theme_dark_tertiary = Color(0xFF80DEEA)
+val md_theme_dark_onTertiary = Color(0xFF003539)
+val md_theme_dark_error = Color(0xFFFFB4AB)
+val md_theme_dark_errorContainer = Color(0xFF93000A)
+val md_theme_dark_onError = Color(0xFF690005)
+val md_theme_dark_onErrorContainer = Color(0xFFFFDAD6)
+val md_theme_dark_background = Color(0xFF111827)          // Dark Charcoal
+val md_theme_dark_onBackground = Color(0xFFE2E2E5)
+val md_theme_dark_surface = Color(0xFF0A1628)             // Deep Navy
+val md_theme_dark_onSurface = Color(0xFFE2E2E5)
+val md_theme_dark_surfaceVariant = Color(0xFF3F4759)
+val md_theme_dark_onSurfaceVariant = Color(0xFFC3C6CF)
+val md_theme_dark_outline = Color(0xFF8D9199)
+val md_theme_dark_inverseOnSurface = Color(0xFF111827)
+val md_theme_dark_inverseSurface = Color(0xFFE2E2E5)
+val md_theme_dark_inversePrimary = Color(0xFF00838F)
+
+// ── Light Theme Colors ──
+val md_theme_light_primary = Color(0xFF00BCD4)            // Electric Teal
 val md_theme_light_onPrimary = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer = Color(0xFF40C4FF)
-val md_theme_light_onPrimaryContainer = Color(0xFF001F2A)
-val md_theme_light_secondary = Color(0xFF0288D1)
+val md_theme_light_primaryContainer = Color(0xFFB2EBF2)
+val md_theme_light_onPrimaryContainer = Color(0xFF002022)
+val md_theme_light_secondary = Color(0xFF1976D2)          // Blue
 val md_theme_light_onSecondary = Color(0xFFFFFFFF)
-val md_theme_light_secondaryContainer = Color(0xFFB3E5FC)
-val md_theme_light_onSecondaryContainer = Color(0xFF001F2A)
-val md_theme_light_tertiary = Color(0xFF00B0FF)
+val md_theme_light_secondaryContainer = Color(0xFFBBDEFB)
+val md_theme_light_onSecondaryContainer = Color(0xFF001F3A)
+val md_theme_light_tertiary = Color(0xFF00838F)
 val md_theme_light_onTertiary = Color(0xFFFFFFFF)
 val md_theme_light_error = Color(0xFFBA1A1A)
 val md_theme_light_errorContainer = Color(0xFFFFDAD6)
 val md_theme_light_onError = Color(0xFFFFFFFF)
 val md_theme_light_onErrorContainer = Color(0xFF410002)
-val md_theme_light_background = Color(0xFFFCFCFF)
+val md_theme_light_background = Color(0xFFFAFAFA)         // Light background
 val md_theme_light_onBackground = Color(0xFF1A1C1E)
-val md_theme_light_surface = Color(0xFFFCFCFF)
+val md_theme_light_surface = Color(0xFFFFFFFF)            // White surface
 val md_theme_light_onSurface = Color(0xFF1A1C1E)
 val md_theme_light_surfaceVariant = Color(0xFFDFE2EB)
 val md_theme_light_onSurfaceVariant = Color(0xFF43474E)
 val md_theme_light_outline = Color(0xFF73777F)
 val md_theme_light_inverseOnSurface = Color(0xFFF1F0F4)
 val md_theme_light_inverseSurface = Color(0xFF2F3033)
-val md_theme_light_inversePrimary = Color(0xFF40C4FF)
+val md_theme_light_inversePrimary = Color(0xFF80DEEA)
 
-val md_theme_dark_primary = Color(0xFF40C4FF)
-val md_theme_dark_onPrimary = Color(0xFF003547)
-val md_theme_dark_primaryContainer = Color(0xFF0288D1)
-val md_theme_dark_onPrimaryContainer = Color(0xFFB3E5FC)
-val md_theme_dark_secondary = Color(0xFF81D4FA)
-val md_theme_dark_onSecondary = Color(0xFF00344F)
-val md_theme_dark_secondaryContainer = Color(0xFF004D71)
-val md_theme_dark_onSecondaryContainer = Color(0xFFB3E5FC)
-val md_theme_dark_tertiary = Color(0xFF00B0FF)
-val md_theme_dark_onTertiary = Color(0xFF003547)
-val md_theme_dark_error = Color(0xFFFFB4AB)
-val md_theme_dark_errorContainer = Color(0xFF93000A)
-val md_theme_dark_onError = Color(0xFF690005)
-val md_theme_dark_onErrorContainer = Color(0xFFFFDAD6)
-val md_theme_dark_background = Color(0xFF1A1C1E)
-val md_theme_dark_onBackground = Color(0xFFE2E2E5)
-val md_theme_dark_surface = Color(0xFF1A1C1E)
-val md_theme_dark_onSurface = Color(0xFFE2E2E5)
-val md_theme_dark_surfaceVariant = Color(0xFF43474E)
-val md_theme_dark_onSurfaceVariant = Color(0xFFC3C6CF)
-val md_theme_dark_outline = Color(0xFF8D9199)
-val md_theme_dark_inverseOnSurface = Color(0xFF1A1C1E)
-val md_theme_dark_inverseSurface = Color(0xFFE2E2E5)
-val md_theme_dark_inversePrimary = Color(0xFF03A9F4)
+// ── Status Colors ──
+val StatusGreen = Color(0xFF4CAF50)
+val StatusRed = Color(0xFFF44336)
+val StatusRedLight = Color(0xFFD32F2F)
+val StatusGrey = Color(0xFF9E9E9E)
+val StatusGreyLight = Color(0xFF757575)
 
+// ── Keyboard Colors ──
 val KeyBackgroundNormal = Color(0x55F0F0F0)
 val KeyBackgroundPressed = Color(0xAAA0A0FF)
 val KeyBackgroundLayout = Color(0x55000000)

@@ -38,7 +38,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import com.logicalsapien.sapienssh.ui.screens.hosteditor.HostEditorScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -63,7 +63,7 @@ class HostEditorScreenTest {
             val context = LocalContext.current
             navController = TestNavHostController(context)
             navController.navigatorProvider.addNavigator(ComposeNavigator())
-            ConnectBotTheme {
+            SapienSSHTheme {
                 // Define a test route for HostEditorScreen
                 NavHost(navController = navController, startDestination = "start") {
                     composable("start") {

@@ -87,7 +87,7 @@ import com.logicalsapien.sapienssh.ui.LocalTerminalManager
 import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.components.DisconnectAllDialog
 import com.logicalsapien.sapienssh.ui.components.ShortcutCustomizationDialog
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.IconStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -772,7 +772,7 @@ private fun parseColor(colorString: String?): Color {
 @PreviewScreen
 @Composable
 private fun HostListScreenEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HostListScreenContent(
             uiState = HostListUiState(
                 hosts = emptyList(),
@@ -798,7 +798,7 @@ private fun HostListScreenEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun HostListScreenLoadingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HostListScreenContent(
             uiState = HostListUiState(
                 hosts = emptyList(),
@@ -824,7 +824,7 @@ private fun HostListScreenLoadingPreview() {
 @PreviewScreen
 @Composable
 private fun HostListScreenErrorPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HostListScreenContent(
             uiState = HostListUiState(
                 hosts = emptyList(),
@@ -851,7 +851,7 @@ private fun HostListScreenErrorPreview() {
 @PreviewScreen
 @Composable
 private fun HostListScreenPopulatedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HostListScreenContent(
             uiState = HostListUiState(
                 hosts = listOf(

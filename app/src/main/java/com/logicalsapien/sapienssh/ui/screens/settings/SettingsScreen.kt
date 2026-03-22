@@ -69,7 +69,7 @@ import com.logicalsapien.sapienssh.ui.ObservePermissionOnResume
 import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.common.getLocalizedFontDisplayName
 import com.logicalsapien.sapienssh.ui.components.FontDownloadProgressDialog
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.LocalFontProvider
 import com.logicalsapien.sapienssh.util.NotificationPermissionHelper
 import com.logicalsapien.sapienssh.util.TerminalFont
@@ -1324,7 +1324,7 @@ private fun LocalFontPreference(
 @PreviewScreen
 @Composable
 private fun SettingsScreenPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         SettingsScreenContent(
             uiState = SettingsUiState(
                 authOnLaunch = false,

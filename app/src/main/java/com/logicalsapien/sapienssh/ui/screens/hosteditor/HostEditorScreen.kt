@@ -73,7 +73,7 @@ import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.common.getIconColors
 import com.logicalsapien.sapienssh.ui.common.getLocalizedColorSchemeDescription
 import com.logicalsapien.sapienssh.ui.common.getLocalizedFontDisplayName
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.HostConstants
 import com.logicalsapien.sapienssh.util.LocalFontProvider
 import com.logicalsapien.sapienssh.util.TerminalFont
@@ -1223,7 +1223,7 @@ private fun SwitchPreference(
 @PreviewScreen
 @Composable
 private fun HostEditorScreenPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HostEditorScreenContent(
             hostId = 1L,
             uiState = HostEditorUiState(

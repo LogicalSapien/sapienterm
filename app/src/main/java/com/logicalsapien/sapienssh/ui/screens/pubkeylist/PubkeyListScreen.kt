@@ -97,7 +97,7 @@ import com.logicalsapien.sapienssh.data.entity.Pubkey
 import com.logicalsapien.sapienssh.ui.LocalTerminalManager
 import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.components.rememberBiometricPromptState
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1011,7 +1011,7 @@ private fun ExportPassphraseDialog(
 @PreviewScreen
 @Composable
 private fun PubkeyListScreenEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyListScreenContent(
             uiState = PubkeyListUiState(
                 pubkeys = emptyList(),
@@ -1039,7 +1039,7 @@ private fun PubkeyListScreenEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyListScreenLoadingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyListScreenContent(
             uiState = PubkeyListUiState(
                 pubkeys = emptyList(),
@@ -1067,7 +1067,7 @@ private fun PubkeyListScreenLoadingPreview() {
 @PreviewScreen
 @Composable
 private fun PubkeyListScreenPopulatedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PubkeyListScreenContent(
             uiState = PubkeyListUiState(
                 pubkeys = listOf(

@@ -1,6 +1,7 @@
 /*
- * ConnectBot: simple, powerful, open-source SSH client for Android
+ * SapienSSH: simple, powerful, open-source SSH client for Android
  * Copyright 2025 Kenny Root
+ * Copyright 2026 LogicalSapien
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +20,6 @@ package com.logicalsapien.sapienssh.ui.theme
 
 import android.app.Activity
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -89,10 +89,10 @@ private val darkScheme = darkColorScheme(
 )
 
 @Composable
-fun ConnectBotTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+fun SapienSSHTheme(
+    darkTheme: Boolean = true,
+    // Dynamic color disabled — we use the fixed SapienSSH brand palette
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

@@ -32,7 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,7 +96,7 @@ fun EulaScreen(
 @PreviewScreen
 @Composable
 private fun EulaScreenPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         EulaScreen(
             onNavigateBack = {}
         )

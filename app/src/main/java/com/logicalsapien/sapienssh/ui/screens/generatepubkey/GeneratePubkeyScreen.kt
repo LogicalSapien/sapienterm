@@ -58,7 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -392,7 +392,7 @@ private fun KeyTypeOption(
 @PreviewScreen
 @Composable
 private fun GeneratePubkeyScreenEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         GeneratePubkeyScreenContent(
             uiState = GeneratePubkeyUiState(),
             onNavigateBack = {},
@@ -414,7 +414,7 @@ private fun GeneratePubkeyScreenEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun GeneratePubkeyScreenFilledPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         GeneratePubkeyScreenContent(
             uiState = GeneratePubkeyUiState(
                 nickname = "work-laptop",
@@ -444,7 +444,7 @@ private fun GeneratePubkeyScreenFilledPreview() {
 @PreviewScreen
 @Composable
 private fun GeneratePubkeyScreenPasswordMismatchPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         GeneratePubkeyScreenContent(
             uiState = GeneratePubkeyUiState(
                 nickname = "home-server",
@@ -473,7 +473,7 @@ private fun GeneratePubkeyScreenPasswordMismatchPreview() {
 @PreviewScreen
 @Composable
 private fun GeneratePubkeyScreenBiometricPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         GeneratePubkeyScreenContent(
             uiState = GeneratePubkeyUiState(
                 nickname = "biometric-key",

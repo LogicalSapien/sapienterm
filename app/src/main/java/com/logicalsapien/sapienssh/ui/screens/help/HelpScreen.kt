@@ -62,7 +62,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.logicalsapien.sapienssh.BuildConfig
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -323,7 +323,7 @@ private fun copyLogsToClipboard(context: Context, logs: String) {
 @PreviewScreen
 @Composable
 private fun HelpScreenPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         HelpScreen(
             onNavigateBack = {},
             onNavigateToHints = {},
@@ -336,7 +336,7 @@ private fun HelpScreenPreview() {
 @Preview
 @Composable
 private fun KeyboardShortcutsDialogPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         KeyboardShortcutsDialog(
             onDismiss = {}
         )

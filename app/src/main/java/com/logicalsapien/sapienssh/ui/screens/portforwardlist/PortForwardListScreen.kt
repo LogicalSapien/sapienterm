@@ -65,7 +65,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.data.entity.PortForward
 import com.logicalsapien.sapienssh.ui.PreviewScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -233,7 +233,7 @@ fun PortForwardListScreenContent(
 @PreviewScreen
 @Composable
 private fun PortForwardListScreenEmptyPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PortForwardListScreenContent(
             uiState = PortForwardListUiState(
                 portForwards = emptyList(),
@@ -252,7 +252,7 @@ private fun PortForwardListScreenEmptyPreview() {
 @PreviewScreen
 @Composable
 private fun PortForwardListScreenLoadingPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PortForwardListScreenContent(
             uiState = PortForwardListUiState(
                 portForwards = emptyList(),
@@ -271,7 +271,7 @@ private fun PortForwardListScreenLoadingPreview() {
 @PreviewScreen
 @Composable
 private fun PortForwardListScreenErrorPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PortForwardListScreenContent(
             uiState = PortForwardListUiState(
                 portForwards = emptyList(),
@@ -291,7 +291,7 @@ private fun PortForwardListScreenErrorPreview() {
 @PreviewScreen
 @Composable
 private fun PortForwardListScreenPopulatedPreview() {
-    ConnectBotTheme {
+    SapienSSHTheme {
         PortForwardListScreenContent(
             uiState = PortForwardListUiState(
                 portForwards = listOf(

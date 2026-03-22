@@ -26,7 +26,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import com.logicalsapien.sapienssh.ui.screens.hostlist.HostListScreen
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -49,7 +49,7 @@ class HostListScreenTest {
     @Test
     fun hostListScreen_displaysTitle() {
         composeTestRule.setContent {
-            ConnectBotTheme {
+            SapienSSHTheme {
                 HostListScreen(
                     onNavigateToConsole = {},
                     onNavigateToEditHost = {},
@@ -70,7 +70,7 @@ class HostListScreenTest {
     @Test
     fun hostListScreen_hasAddButton() {
         composeTestRule.setContent {
-            ConnectBotTheme {
+            SapienSSHTheme {
                 HostListScreen(
                     onNavigateToConsole = {},
                     onNavigateToEditHost = {},
@@ -91,7 +91,7 @@ class HostListScreenTest {
     @Test
     fun hostListScreen_menuOpensOnClick() {
         composeTestRule.setContent {
-            ConnectBotTheme {
+            SapienSSHTheme {
                 HostListScreen(
                     onNavigateToConsole = {},
                     onNavigateToEditHost = {},
@@ -120,7 +120,7 @@ class HostListScreenTest {
         var addHostCalled = false
 
         composeTestRule.setContent {
-            ConnectBotTheme {
+            SapienSSHTheme {
                 HostListScreen(
                     onNavigateToConsole = {},
                     onNavigateToEditHost = { addHostCalled = true },

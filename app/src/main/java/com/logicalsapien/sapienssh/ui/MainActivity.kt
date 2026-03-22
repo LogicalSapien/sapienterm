@@ -57,7 +57,7 @@ import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.service.TerminalManager
 import com.logicalsapien.sapienssh.ui.components.DisconnectAllDialog
 import com.logicalsapien.sapienssh.ui.navigation.NavDestinations
-import com.logicalsapien.sapienssh.ui.theme.ConnectBotTheme
+import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.IconStyle
 import com.logicalsapien.sapienssh.util.NotificationPermissionHelper
 import com.logicalsapien.sapienssh.util.PreferenceConstants
@@ -211,7 +211,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (showDisconnectAllDialog) {
-                ConnectBotTheme {
+                SapienSSHTheme {
                     DisconnectAllDialog(
                         onDismiss = {
                             Timber.d("User cancelled disconnectAll")
@@ -238,7 +238,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (showPermissionRationale) {
-                ConnectBotTheme {
+                SapienSSHTheme {
                     NotificationPermissionRationaleDialog(
                         onDismiss = {
                             Timber.d("User dismissed permission rationale, proceeding anyway")
