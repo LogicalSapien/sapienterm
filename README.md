@@ -1,77 +1,55 @@
-[![Build Status](https://github.com/connectbot/connectbot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/connectbot/connectbot/actions/workflows/ci.yml)
+# SapienSSH
 
-# ConnectBot
+A modern Android SSH terminal app by [LogicalSapien](https://github.com/logicalsapien), built on ConnectBot's SSH engine.
 
-ConnectBot is a [Secure Shell](https://en.wikipedia.org/wiki/Secure_Shell)
-client for Android that lets you connect to remote servers over a
-cryptographically secure link.
+## Features
 
+- Full SSH terminal emulator with VT100/xterm support
+- Material Design 3 UI with dark and light theme
+- Card-based connection management with status indicators
+- Quick Commands -- save, organize, and instantly send commands to the terminal
+- Quick Commands toolbar above keyboard in the terminal session
+- Credentials vault -- securely store SSH keys and passwords with Android Keystore encryption
+- SSH key generation (RSA 2048/4096, Ed25519) and import from file
+- Link credentials to connections for automatic authentication
+- Export/Import data with optional encrypted backup (.sapienssh)
+- Port forwarding (local, remote, dynamic/SOCKS5)
+- Host key verification with fingerprint display
+- Multiple simultaneous terminal sessions
+- Keep-alive ping support
+- All original ConnectBot features preserved
 
-## How to Install
+## Requirements
 
-### Google Play
+- Android 8.0+ (API 26)
+- JDK 17 (for building from source)
 
-[![Get it on Google Play][2]][1]
-
-  [1]: https://play.google.com/store/apps/details?id=org.connectbot
-  [2]: https://developer.android.com/images/brand/en_generic_rgb_wo_60.png
-
-The easiest way to get ConnectBot is to [install from Google Play Store][1].
-If you have installed from a downloaded APK, Google Play Store can upgrade
-your installed version to the latest version. However, once it has upgraded
-*you can't install a version from the releases on GitHub anymore.*
-
-
-### Download a release
-
-ConnectBot can be downloaded from [releases](
-https://github.com/connectbot/connectbot/releases) on GitHub. There are
-two versions:
-
--  "`google`" &mdash; for a version that uses Google Play Services
-to handle upgrading the cryptography provider
--  "`oss`" &mdash; includes the cryptography provider in the APK which
-   increases its size by a few megabytes.
-## Compiling
-
-### Android Studio
-
-ConnectBot is most easily developed in [Android Studio](
-https://developer.android.com/studio/). You can import this project
-directly from its project creation screen by importing from the GitHub URL.
-
-### Command line
-
-To compile ConnectBot using `gradlew`, you must first specify where your
-Android SDK is via the `ANDROID_SDK_HOME` environment variable. Then
-you can invoke the Gradle wrapper to build:
+## Building from Source
 
 ```sh
-./gradlew build
+git clone <repo-url>
+cd sapienssh
+./gradlew assembleOssDebug
 ```
 
-### Continuous Integration
+The APK will be at `app/build/outputs/apk/oss/debug/app-oss-debug.apk`.
 
-ConnectBot uses [GitHub Actions](https://github.com/connectbot/connectbot/actions)
-for continuous integration. The workflow is defined in
-`.github/workflows/ci.yml`.
-
-#### Running Workflows Locally with act
-
-In general, simply running `./gradlew build` should cover all the
-checks run in the GitHub Actions continuous integration workflow, but you can
-run GitHub Actions workflows locally using [`nektos/act`](https://github.com/nektos/act).
-This requires Docker to be installed and running.
-
-To run the main CI workflow (`ci.yml`):
+## Install via USB
 
 ```sh
-act -W .github/workflows/ci.yml
+adb install app/build/outputs/apk/oss/debug/app-oss-debug.apk
 ```
 
+## Tech Stack
 
-## Translations
+Kotlin, Jetpack Compose, Material Design 3, Hilt, Room, sshlib, termlib
 
-If you'd like to correct or contribute new translations to ConnectBot,
-then head on over to [ConnectBot's translations project](
-https://translations.launchpad.net/connectbot/trunk/+pots/fortune)
+## Attribution
+
+- Built on [ConnectBot](https://github.com/connectbot/connectbot) (Apache 2.0 License)
+- SSH engine: [sshlib](https://github.com/connectbot/sshlib) by ConnectBot
+- Terminal emulation: termlib by ConnectBot
+
+## License
+
+Apache 2.0
