@@ -20,10 +20,6 @@ package com.logicalsapien.sapienssh.ui.screens.console
 import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -38,6 +34,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.padding
@@ -47,6 +44,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.MoreVert
@@ -64,6 +63,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -163,7 +163,6 @@ fun ConsoleScreen(
     // Read preferences
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     val extendedKeyboardConfig = remember { ExtendedKeyboardConfig.load(prefs) }
-    val keyboardAlwaysVisible = remember { prefs.getBoolean("alwaysvisible", false) }
     var fullscreen by remember { mutableStateOf(prefs.getBoolean("fullscreen", false)) }
     var titleBarHide by remember { mutableStateOf(prefs.getBoolean("titlebarhide", false)) }
     val volumeKeysChangeFontSize = remember { prefs.getBoolean(PreferenceConstants.VOLUME_FONT, true) }
@@ -182,14 +181,11 @@ fun ConsoleScreen(
     var showDisconnectDialog by remember { mutableStateOf(false) }
     var showTextInputDialog by remember { mutableStateOf(false) }
     var showRenameSessionDialog by remember { mutableStateOf(false) }
-    var showExtraKeyboard by remember { mutableStateOf(true) } // Start visible to show animation
-    var hasPlayedKeyboardAnimation by remember { mutableStateOf(false) }
     var showTitleBar by remember { mutableStateOf(!titleBarHide) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var scannedUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectionController by remember { mutableStateOf<SelectionController?>(null) }
     var imeVisible by remember { mutableStateOf(false) }
-    var keyboardScrollInProgress by remember { mutableStateOf(false) }
 
     // Apply fullscreen mode and display cutout settings
     LaunchedEffect(fullscreen) {
@@ -261,21 +257,11 @@ fun ConsoleScreen(
         wasBiometricPromptActive = isBiometricPromptActive
     }
 
-    // Unified auto-hide timer for both keyboard and title bar
-    LaunchedEffect(lastInteractionTime, keyboardAlwaysVisible, titleBarHide, keyboardScrollInProgress) {
-        // Only run the timer if there's something to auto-hide and not actively scrolling
-        if ((!keyboardAlwaysVisible || titleBarHide) && !keyboardScrollInProgress) {
+    // Auto-hide timer for title bar only (keyboard strip is always visible now)
+    LaunchedEffect(lastInteractionTime, titleBarHide) {
+        if (titleBarHide) {
             delay(3000)
-            // Hide keyboard if not always visible
-            if (!keyboardAlwaysVisible) {
-                showExtraKeyboard = false
-            }
-            // Hide title bar if auto-hide is enabled
-            if (titleBarHide) {
-                showTitleBar = false
-            }
-            // Mark animation as played after first timeout
-            hasPlayedKeyboardAnimation = true
+            showTitleBar = false
         }
     }
 
@@ -330,15 +316,11 @@ fun ConsoleScreen(
     }
 
     fun handleTerminalInteraction() {
-        // Show emulated keyboard when terminal is tapped (unless always visible)
-        if (!keyboardAlwaysVisible) {
-            showExtraKeyboard = true
-        }
         // Show title bar temporarily when terminal is tapped (if auto-hide enabled)
         if (titleBarHide) {
             showTitleBar = true
         }
-        // Reset the unified timer
+        // Reset the timer for title bar auto-hide
         lastInteractionTime = System.currentTimeMillis()
     }
 
@@ -503,43 +485,7 @@ fun ConsoleScreen(
                             }
                         }
 
-                        // Extended keyboard strip + Quick Commands toolbar overlay
-                        // Must be BEFORE prompts so prompts appear on top
-                        Column(
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        ) {
-                            // Quick Commands toolbar (above the keyboard strip)
-                            val quickCommands by viewModel.quickCommands.collectAsState()
-                            val isQuickCommandToolbarVisible by viewModel.isQuickCommandToolbarVisible.collectAsState()
-
-                            if (quickCommands.isNotEmpty() && showExtraKeyboard) {
-                                QuickCommandToolbar(
-                                    quickCommands = quickCommands,
-                                    isVisible = isQuickCommandToolbarVisible,
-                                    onToggleVisibility = { viewModel.toggleQuickCommandToolbar() },
-                                    onCommandClick = { command ->
-                                        viewModel.sendQuickCommand(command)
-                                        handleTerminalInteraction()
-                                    }
-                                )
-                            }
-
-                            // Extended keyboard strip (replaces the old TerminalKeyboard)
-                            AnimatedVisibility(
-                                visible = showExtraKeyboard,
-                                enter = fadeIn(animationSpec = tween(durationMillis = 100)),
-                                exit = fadeOut(animationSpec = tween(durationMillis = 100))
-                            ) {
-                                ExtendedKeyboardStrip(
-                                    bridge = bridge,
-                                    config = extendedKeyboardConfig,
-                                    onInteraction = { handleTerminalInteraction() }
-                                )
-                            }
-                        }
-
                         // Show inline prompts from the current bridge (non-modal at bottom)
-                        // Must be AFTER keyboard so prompts appear on top (z-order)
                         val promptState by bridge.promptManager.promptState.collectAsState()
 
                         InlinePrompt(
@@ -600,6 +546,60 @@ fun ConsoleScreen(
                 }
             }
             } // end Box
+
+            // Quick Commands toolbar - BELOW the terminal, not overlapping it
+            if (currentBridge != null) {
+                val quickCommands by viewModel.quickCommands.collectAsState()
+                val isQuickCommandToolbarVisible by viewModel.isQuickCommandToolbarVisible.collectAsState()
+
+                if (quickCommands.isNotEmpty()) {
+                    QuickCommandToolbar(
+                        quickCommands = quickCommands,
+                        isVisible = isQuickCommandToolbarVisible,
+                        onToggleVisibility = { viewModel.toggleQuickCommandToolbar() },
+                        onCommandClick = { command ->
+                            viewModel.sendQuickCommand(command)
+                            handleTerminalInteraction()
+                        }
+                    )
+                }
+
+                // Extended keyboard strip - always visible, below terminal
+                ExtendedKeyboardStrip(
+                    bridge = currentBridge,
+                    config = extendedKeyboardConfig,
+                    onInteraction = { handleTerminalInteraction() }
+                )
+            }
+
+            // Keyboard toggle bar - always visible at the bottom
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            showSoftwareKeyboard = !showSoftwareKeyboard
+                            if (showSoftwareKeyboard) {
+                                termFocusRequester.requestFocus()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (showSoftwareKeyboard) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
+                            contentDescription = if (showSoftwareKeyboard) "Hide keyboard" else "Show keyboard",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         } // end Column
 
         // Dialogs
