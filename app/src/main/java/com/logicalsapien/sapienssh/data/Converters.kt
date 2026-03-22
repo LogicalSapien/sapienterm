@@ -18,6 +18,7 @@
 package com.logicalsapien.sapienssh.data
 
 import androidx.room.TypeConverter
+import com.logicalsapien.sapienssh.data.entity.CredentialType
 import com.logicalsapien.sapienssh.data.entity.KeyStorageType
 
 /**
@@ -29,4 +30,10 @@ class Converters {
 
     @TypeConverter
     fun toKeyStorageType(value: String): KeyStorageType = KeyStorageType.valueOf(value)
+
+    @TypeConverter
+    fun fromCredentialType(value: CredentialType): String = value.name
+
+    @TypeConverter
+    fun toCredentialType(value: String): CredentialType = CredentialType.valueOf(value)
 }

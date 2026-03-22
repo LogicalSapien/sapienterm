@@ -29,9 +29,11 @@ import com.logicalsapien.sapienssh.data.dao.KnownHostDao
 import com.logicalsapien.sapienssh.data.dao.PortForwardDao
 import com.logicalsapien.sapienssh.data.dao.ProfileDao
 import com.logicalsapien.sapienssh.data.dao.PubkeyDao
+import com.logicalsapien.sapienssh.data.dao.CredentialDao
 import com.logicalsapien.sapienssh.data.dao.QuickCommandDao
 import com.logicalsapien.sapienssh.data.entity.ColorPalette
 import com.logicalsapien.sapienssh.data.entity.ColorScheme
+import com.logicalsapien.sapienssh.data.entity.Credential
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.data.entity.KnownHost
 import com.logicalsapien.sapienssh.data.entity.PortForward
@@ -60,6 +62,7 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
  * - Version 6: Added force_size_rows and force_size_columns to profiles (AutoMigration)
  * - Version 7: Added ip_version column to hosts for IP version preference (AutoMigration)
  * - Version 8: Added quick_commands table for reusable terminal commands (manual migration)
+ * - Version 9: Added credentials table for reusable authentication credentials (manual migration)
  * - Future versions: Use Room AutoMigration when possible for simple schema changes
  *
  * Security Considerations:
@@ -75,9 +78,10 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
         ColorScheme::class,
         ColorPalette::class,
         Profile::class,
-        QuickCommand::class
+        QuickCommand::class,
+        Credential::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -96,13 +100,14 @@ abstract class ConnectBotDatabase : RoomDatabase() {
     abstract fun colorSchemeDao(): ColorSchemeDao
     abstract fun profileDao(): ProfileDao
     abstract fun quickCommandDao(): QuickCommandDao
+    abstract fun credentialDao(): CredentialDao
 
     companion object {
         /**
          * Current database schema version.
          * This is also used for JSON export/import versioning.
          */
-        const val SCHEMA_VERSION = 8
+        const val SCHEMA_VERSION = 9
 
         /**
          * Migration from version 4 to 5: Add profiles table and profile_id to hosts.
@@ -254,6 +259,28 @@ abstract class ConnectBotDatabase : RoomDatabase() {
                         `category` TEXT,
                         `created_at` INTEGER NOT NULL DEFAULT 0,
                         `sort_order` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        /**
+         * Migration from version 8 to 9: Add credentials table.
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `credentials` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `encrypted_password` BLOB,
+                        `encrypted_private_key` BLOB,
+                        `public_key` TEXT,
+                        `encrypted_passphrase` BLOB,
+                        `created_at` INTEGER NOT NULL DEFAULT 0
                     )
                     """.trimIndent()
                 )
