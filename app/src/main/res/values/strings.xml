@@ -1393,6 +1393,58 @@
 	<!-- Subtitle shown in the biometric/device credential authentication prompt -->
 	<string name="auth_prompt_subtitle">Verify your identity to continue</string>
 
+	<!-- Export/Import settings -->
+	<string name="pref_data_category">Data</string>
+	<string name="pref_export_title">Export Data</string>
+	<string name="pref_export_summary">Export connections, quick commands, and credentials to a backup file</string>
+	<string name="pref_import_title">Import Data</string>
+	<string name="pref_import_summary">Import data from a backup file</string>
+
+	<!-- Export dialog -->
+	<string name="export_dialog_title">Export Data</string>
+	<string name="export_include_connections">Connections</string>
+	<string name="export_include_quick_commands">Quick Commands</string>
+	<string name="export_include_credentials">Credentials</string>
+	<string name="export_credentials_warning">Credentials will be encrypted with a passphrase</string>
+	<string name="export_passphrase_label">Passphrase</string>
+	<string name="export_passphrase_confirm_label">Confirm passphrase</string>
+	<string name="export_passphrase_mismatch">Passphrases do not match</string>
+	<string name="export_button">Export</string>
+	<string name="export_success">Data exported successfully</string>
+	<string name="export_error">Export failed: %s</string>
+	<string name="export_nothing_selected">Select at least one data type to export</string>
+	<string name="export_in_progress">Exporting data…</string>
+
+	<!-- Import dialog -->
+	<string name="import_dialog_title">Import Data</string>
+	<string name="import_select_file">Select backup file</string>
+	<string name="import_passphrase_title">Enter Passphrase</string>
+	<string name="import_passphrase_hint">Enter passphrase used during export</string>
+	<string name="import_preview_title">Import Preview</string>
+	<string name="import_preview_connections">%d connections</string>
+	<string name="import_preview_quick_commands">%d quick commands</string>
+	<string name="import_preview_credentials">%d credentials</string>
+	<string name="import_mode_title">Import Mode</string>
+	<string name="import_mode_merge">Merge</string>
+	<string name="import_mode_merge_description">Keep existing data, skip duplicates</string>
+	<string name="import_mode_replace">Replace</string>
+	<string name="import_mode_replace_description">Delete existing data before importing</string>
+	<string name="import_button">Import</string>
+	<string name="import_success">Imported %1$d connections, %2$d quick commands, %3$d credentials</string>
+	<string name="import_error">Import failed: %s</string>
+	<string name="import_wrong_passphrase">Wrong passphrase. Please try again.</string>
+	<string name="import_corrupt_file">File is corrupt or not a valid backup</string>
+	<string name="import_in_progress">Importing data…</string>
+	<string name="import_reading_file">Reading file…</string>
+
+	<!-- About section -->
+	<string name="pref_about_category">About</string>
+	<string name="about_version">Version %s</string>
+	<string name="about_engine">Powered by ConnectBot SSH engine</string>
+	<string name="about_branding">LogicalSapien</string>
+	<string name="about_license">Apache 2.0 License</string>
+	<string name="about_license_url">https://www.apache.org/licenses/LICENSE-2.0</string>
+
 	<!-- Bottom navigation bar labels -->
 	<string name="nav_connections">Connections</string>
 	<string name="nav_quick_commands">Quick Commands</string>

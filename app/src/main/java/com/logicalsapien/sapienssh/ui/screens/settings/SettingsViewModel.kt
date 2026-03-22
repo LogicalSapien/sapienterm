@@ -40,6 +40,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.logicalsapien.sapienssh.data.ProfileRepository
 import com.logicalsapien.sapienssh.data.entity.Profile
+import com.logicalsapien.sapienssh.data.export.ExportCryptoException
+import com.logicalsapien.sapienssh.data.export.ExportData
+import com.logicalsapien.sapienssh.data.export.ExportManager
+import com.logicalsapien.sapienssh.data.export.ImportException
+import com.logicalsapien.sapienssh.data.export.ImportManager
+import com.logicalsapien.sapienssh.data.export.ImportMode
+import com.logicalsapien.sapienssh.data.export.ImportResult
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
 import com.logicalsapien.sapienssh.util.LocalFontProvider
 import com.logicalsapien.sapienssh.util.PreferenceConstants
@@ -83,15 +90,34 @@ data class SettingsUiState(
     val fontDownloadInProgress: Boolean = false,
     val language: String = "",
     val defaultProfileId: Long = 0L,
-    val availableProfiles: List<Profile> = emptyList()
+    val availableProfiles: List<Profile> = emptyList(),
+    // Export/Import state
+    val exportInProgress: Boolean = false,
+    val importInProgress: Boolean = false,
+    val importPreview: ExportData? = null,
+    val importFileUri: Uri? = null,
+    val importNeedsPassphrase: Boolean = false
 )
+
+/**
+ * Sealed class for one-shot events from the ViewModel to the UI.
+ */
+sealed class SettingsEvent {
+    data class ExportSuccess(val uri: Uri) : SettingsEvent()
+    data class ExportError(val message: String) : SettingsEvent()
+    data class ImportSuccess(val result: ImportResult) : SettingsEvent()
+    data class ImportError(val message: String) : SettingsEvent()
+    object ImportWrongPassphrase : SettingsEvent()
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: SharedPreferences,
     private val profileRepository: ProfileRepository,
     @ApplicationContext private val context: Context,
-    private val dispatchers: CoroutineDispatchers
+    private val dispatchers: CoroutineDispatchers,
+    private val exportManager: ExportManager,
+    private val importManager: ImportManager
 ) : ViewModel() {
     private val fontProvider = TerminalFontProvider(context, dispatchers.io)
     private val localFontProvider = LocalFontProvider(context)
@@ -103,6 +129,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _showPermissionDeniedDialog = Channel<Unit>(Channel.CONFLATED)
     val showPermissionDeniedDialog = _showPermissionDeniedDialog.receiveAsFlow()
+
+    private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
     // Persist permission denial state in SharedPreferences
     private var wasPermissionDenied: Boolean
@@ -482,6 +511,106 @@ class SettingsViewModel @Inject constructor(
 
     fun clearFontImportError() {
         _uiState.update { it.copy(fontImportError = null) }
+    }
+
+    // ── Export / Import ─────────────────────────────────────────────────
+
+    fun exportData(
+        includeConnections: Boolean,
+        includeQuickCommands: Boolean,
+        includeCredentials: Boolean,
+        passphrase: String?
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(exportInProgress = true) }
+            try {
+                val uri = exportManager.exportData(
+                    includeConnections = includeConnections,
+                    includeQuickCommands = includeQuickCommands,
+                    includeCredentials = includeCredentials,
+                    passphrase = passphrase
+                )
+                _events.send(SettingsEvent.ExportSuccess(uri))
+            } catch (e: Exception) {
+                Timber.e(e, "Export failed")
+                _events.send(SettingsEvent.ExportError(e.message ?: "Unknown error"))
+            } finally {
+                _uiState.update { it.copy(exportInProgress = false) }
+            }
+        }
+    }
+
+    fun previewImport(uri: Uri, passphrase: String?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(importInProgress = true, importFileUri = uri) }
+            try {
+                val preview = importManager.previewImport(uri, passphrase)
+                _uiState.update {
+                    it.copy(
+                        importInProgress = false,
+                        importPreview = preview,
+                        importNeedsPassphrase = false
+                    )
+                }
+            } catch (e: ExportCryptoException) {
+                _uiState.update { it.copy(importInProgress = false) }
+                _events.send(SettingsEvent.ImportWrongPassphrase)
+            } catch (e: ImportException) {
+                val msg = e.message ?: "Unknown error"
+                if (msg.contains("passphrase", ignoreCase = true) ||
+                    msg.contains("encrypted", ignoreCase = true)
+                ) {
+                    _uiState.update {
+                        it.copy(
+                            importInProgress = false,
+                            importNeedsPassphrase = true
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(importInProgress = false) }
+                    _events.send(SettingsEvent.ImportError(msg))
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Import preview failed")
+                _uiState.update { it.copy(importInProgress = false) }
+                _events.send(SettingsEvent.ImportError(e.message ?: "Unknown error"))
+            }
+        }
+    }
+
+    fun importData(uri: Uri, passphrase: String?, mode: ImportMode) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(importInProgress = true) }
+            try {
+                val result = importManager.importData(uri, passphrase, mode)
+                _uiState.update {
+                    it.copy(
+                        importInProgress = false,
+                        importPreview = null,
+                        importFileUri = null,
+                        importNeedsPassphrase = false
+                    )
+                }
+                _events.send(SettingsEvent.ImportSuccess(result))
+            } catch (e: ExportCryptoException) {
+                _uiState.update { it.copy(importInProgress = false) }
+                _events.send(SettingsEvent.ImportWrongPassphrase)
+            } catch (e: Exception) {
+                Timber.e(e, "Import failed")
+                _uiState.update { it.copy(importInProgress = false) }
+                _events.send(SettingsEvent.ImportError(e.message ?: "Unknown error"))
+            }
+        }
+    }
+
+    fun clearImportState() {
+        _uiState.update {
+            it.copy(
+                importPreview = null,
+                importFileUri = null,
+                importNeedsPassphrase = false
+            )
+        }
     }
 
     private fun updateBooleanPref(key: String, value: Boolean, updateState: SettingsUiState.() -> SettingsUiState) {

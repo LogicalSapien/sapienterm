@@ -22,6 +22,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -147,6 +148,130 @@ fun SettingsScreen(
         )
     }
 
+    // Export/Import dialog state
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showImportPassphraseDialog by remember { mutableStateOf(false) }
+    var importPassphrase by remember { mutableStateOf<String?>(null) }
+
+    // File picker for import
+    val importFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            // Check if file needs passphrase (encrypted .sapienssh files)
+            val path = uri.lastPathSegment ?: uri.path ?: ""
+            if (path.endsWith(".sapienssh", ignoreCase = true)) {
+                // Encrypted file - ask for passphrase first
+                viewModel.clearImportState()
+                importPassphrase = null
+                showImportPassphraseDialog = true
+                // Store the URI via ViewModel for later use
+                viewModel.previewImport(uri, null) // Will trigger passphrase needed
+            } else {
+                // Plain JSON - preview directly
+                importPassphrase = null
+                viewModel.previewImport(uri, null)
+            }
+        }
+    }
+
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SettingsEvent.ExportSuccess -> {
+                    showExportDialog = false
+                    // Launch share sheet
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/octet-stream"
+                        putExtra(Intent.EXTRA_STREAM, event.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(shareIntent, context.getString(R.string.export_dialog_title))
+                    )
+                    Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
+                }
+                is SettingsEvent.ExportError -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.export_error, event.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is SettingsEvent.ImportSuccess -> {
+                    val result = event.result
+                    Toast.makeText(
+                        context,
+                        context.getString(
+                            R.string.import_success,
+                            result.connectionsImported,
+                            result.quickCommandsImported,
+                            result.credentialsImported
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is SettingsEvent.ImportError -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.import_error, event.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is SettingsEvent.ImportWrongPassphrase -> {
+                    Toast.makeText(context, R.string.import_wrong_passphrase, Toast.LENGTH_LONG).show()
+                    showImportPassphraseDialog = true
+                }
+            }
+        }
+    }
+
+    // Export dialog
+    if (showExportDialog) {
+        ExportDialog(
+            isExporting = uiState.exportInProgress,
+            onExport = { connections, quickCommands, credentials, passphrase ->
+                viewModel.exportData(connections, quickCommands, credentials, passphrase)
+            },
+            onDismiss = { showExportDialog = false }
+        )
+    }
+
+    // Import passphrase dialog
+    if (showImportPassphraseDialog || uiState.importNeedsPassphrase) {
+        ImportPassphraseDialog(
+            isLoading = uiState.importInProgress,
+            onSubmit = { passphrase ->
+                importPassphrase = passphrase
+                showImportPassphraseDialog = false
+                uiState.importFileUri?.let { uri ->
+                    viewModel.previewImport(uri, passphrase)
+                }
+            },
+            onDismiss = {
+                showImportPassphraseDialog = false
+                viewModel.clearImportState()
+            }
+        )
+    }
+
+    // Import preview dialog
+    if (uiState.importPreview != null) {
+        ImportPreviewDialog(
+            preview = uiState.importPreview!!,
+            isImporting = uiState.importInProgress,
+            onImport = { mode ->
+                uiState.importFileUri?.let { uri ->
+                    viewModel.importData(uri, importPassphrase, mode)
+                }
+            },
+            onDismiss = {
+                viewModel.clearImportState()
+            }
+        )
+    }
+
     SettingsScreenContent(
         uiState = uiState,
         onNavigateBack = onNavigateBack,
@@ -184,6 +309,14 @@ fun SettingsScreen(
         onBellVolumeChange = viewModel::updateBellVolume,
         onBellVibrateChange = viewModel::updateBellVibrate,
         onBellNotificationChange = viewModel::updateBellNotification,
+        onExportClick = { showExportDialog = true },
+        onImportClick = {
+            importFilePicker.launch(arrayOf(
+                "application/json",
+                "application/octet-stream",
+                "*/*"
+            ))
+        },
         modifier = modifier
     )
 }
@@ -227,6 +360,8 @@ fun SettingsScreenContent(
     onBellVolumeChange: (Float) -> Unit,
     onBellVibrateChange: (Boolean) -> Unit,
     onBellNotificationChange: (Boolean) -> Unit,
+    onExportClick: () -> Unit,
+    onImportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -622,6 +757,67 @@ fun SettingsScreenContent(
                     checked = uiState.bellNotification,
                     onCheckedChange = onBellNotificationChange
                 )
+            }
+
+            // ── Data (Export/Import) ─────────────────────────────────
+            item {
+                PreferenceCategory(title = stringResource(R.string.pref_data_category))
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.pref_export_title)) },
+                    supportingContent = { Text(stringResource(R.string.pref_export_summary)) },
+                    modifier = Modifier.clickable(onClick = onExportClick)
+                )
+                HorizontalDivider()
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.pref_import_title)) },
+                    supportingContent = { Text(stringResource(R.string.pref_import_summary)) },
+                    modifier = Modifier.clickable(onClick = onImportClick)
+                )
+                HorizontalDivider()
+            }
+
+            // ── About ───────────────────────────────────────────────
+            item {
+                PreferenceCategory(title = stringResource(R.string.pref_about_category))
+            }
+
+            item {
+                val context = LocalContext.current
+                ListItem(
+                    headlineContent = {
+                        Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME))
+                    },
+                    supportingContent = { Text(stringResource(R.string.about_engine)) }
+                )
+                HorizontalDivider()
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.about_branding)) }
+                )
+                HorizontalDivider()
+            }
+
+            item {
+                val context = LocalContext.current
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.about_license)) },
+                    modifier = Modifier.clickable {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(context.getString(R.string.about_license_url))
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+                HorizontalDivider()
             }
         }
     }
@@ -1394,7 +1590,9 @@ private fun SettingsScreenPreview() {
             onBellChange = {},
             onBellVolumeChange = {},
             onBellVibrateChange = {},
-            onBellNotificationChange = {}
+            onBellNotificationChange = {},
+            onExportClick = {},
+            onImportClick = {}
         )
     }
 }
