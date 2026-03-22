@@ -272,6 +272,13 @@ class ConsoleViewModel @Inject constructor(
     }
 
     /**
+     * Disconnect a specific bridge (used for closing tabs).
+     */
+    fun disconnectBridge(bridge: TerminalBridge) {
+        bridge.dispatchDisconnect(true)
+    }
+
+    /**
      * Toggle visibility of the quick command toolbar chips.
      */
     fun toggleQuickCommandToolbar() {

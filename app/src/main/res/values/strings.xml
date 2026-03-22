@@ -1454,4 +1454,16 @@
 	<!-- Extended keyboard strip settings -->
 	<string name="pref_extended_keyboard_title">Extended keyboard keys</string>
 	<string name="pref_extended_keyboard_summary">Choose which special keys appear in the terminal keyboard strip</string>
+
+	<!-- Host context menu actions -->
+	<!-- Context menu item to rename a connection -->
+	<string name="list_host_rename">Rename</string>
+	<!-- Dialog title for renaming a connection -->
+	<string name="rename_host_title">Rename Connection</string>
+	<!-- Snackbar message shown after cloning a connection -->
+	<string name="connection_cloned">Connection cloned</string>
+	<!-- Snackbar message shown after renaming a connection -->
+	<string name="connection_renamed">Connection renamed</string>
+	<!-- Close tab content description for session tabs -->
+	<string name="close_tab">Close tab</string>
 </resources>

@@ -61,12 +61,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -352,26 +350,14 @@ fun ConsoleScreen(
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
             .union(WindowInsets.imeAnimationTarget)
     ) { innerPadding ->
-        // Show tabs if multiple terminals
-        if (uiState.bridges.size > 1) {
-            PrimaryTabRow(
-                selectedTabIndex = uiState.currentBridgeIndex,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                uiState.bridges.forEachIndexed { index, bridge ->
-                    Tab(
-                        selected = index == uiState.currentBridgeIndex,
-                        onClick = { viewModel.selectBridge(index) },
-                        text = {
-                            Text(
-                                bridge.host.nickname,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    )
-                }
-            }
+        // Session tab bar - always visible when bridges exist
+        if (uiState.bridges.isNotEmpty() && !uiState.isLoading) {
+            SessionTabBar(
+                bridges = uiState.bridges,
+                currentIndex = uiState.currentBridgeIndex,
+                onSelectTab = { viewModel.selectBridge(it) },
+                onCloseTab = { bridge -> viewModel.disconnectBridge(bridge) }
+            )
         }
 
         // Terminal content with keyboard overlay

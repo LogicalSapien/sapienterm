@@ -51,6 +51,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -233,6 +234,7 @@ fun HostListScreen(
         onToggleSortOrder = viewModel::toggleSortOrder,
         onDeleteHost = viewModel::deleteHost,
         onDuplicateHost = viewModel::duplicateHost,
+        onRenameHost = viewModel::renameHost,
         onForgetHostKeys = viewModel::forgetHostKeys,
         onDisconnectHost = viewModel::disconnectHost,
         onDisconnectAll = viewModel::disconnectAll,
@@ -258,6 +260,7 @@ fun HostListScreenContent(
     onToggleSortOrder: () -> Unit,
     onDeleteHost: (Host) -> Unit,
     onDuplicateHost: (Host) -> Unit,
+    onRenameHost: (Host, String) -> Unit = { _, _ -> },
     onForgetHostKeys: (Host) -> Unit,
     onDisconnectHost: (Host) -> Unit,
     onDisconnectAll: () -> Unit,
@@ -268,7 +271,10 @@ fun HostListScreenContent(
     var showMenu by remember { mutableStateOf(false) }
     var showDisconnectAllDialog by remember { mutableStateOf(false) }
     var hostToDelete by remember { mutableStateOf<Host?>(null) }
+    var hostToRename by remember { mutableStateOf<Host?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Show snackbar when there's an error
     LaunchedEffect(uiState.error) {
@@ -447,7 +453,16 @@ fun HostListScreenContent(
                                     connectionState = connectionState,
                                     onClick = { onNavigateToConsole(host) },
                                     onEdit = { onNavigateToEditHost(host) },
-                                    onDelete = { hostToDelete = host }
+                                    onDelete = { hostToDelete = host },
+                                    onClone = {
+                                        onDuplicateHost(host)
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                message = context.getString(R.string.connection_cloned)
+                                            )
+                                        }
+                                    },
+                                    onRename = { hostToRename = host }
                                 )
                             }
                         }
@@ -478,6 +493,23 @@ fun HostListScreenContent(
             }
         )
     }
+
+    // Rename dialog
+    hostToRename?.let { host ->
+        HostRenameDialog(
+            host = host,
+            onDismiss = { hostToRename = null },
+            onConfirm = { newName ->
+                hostToRename = null
+                onRenameHost(host, newName)
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.connection_renamed)
+                    )
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -487,7 +519,9 @@ private fun SwipeToDismissHostItem(
     connectionState: ConnectionState,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClone: () -> Unit = {},
+    onRename: () -> Unit = {}
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
@@ -581,9 +615,48 @@ private fun SwipeToDismissHostItem(
         ConnectionCard(
             host = host,
             connectionState = connectionState,
-            onClick = onClick
+            onClick = onClick,
+            onClone = onClone,
+            onRename = onRename,
+            onEdit = onEdit,
+            onDelete = onDelete
         )
     }
+}
+
+@Composable
+private fun HostRenameDialog(
+    host: Host,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var nickname by remember { mutableStateOf(host.nickname) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rename_host_title)) },
+        text = {
+            OutlinedTextField(
+                value = nickname,
+                onValueChange = { nickname = it },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(nickname) },
+                enabled = nickname.isNotBlank() && nickname != host.nickname
+            ) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

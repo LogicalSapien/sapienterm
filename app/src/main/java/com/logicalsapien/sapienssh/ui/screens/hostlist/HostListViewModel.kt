@@ -243,6 +243,19 @@ class HostListViewModel @Inject constructor(
         }
     }
 
+    fun renameHost(host: Host, newNickname: String) {
+        viewModelScope.launch {
+            try {
+                val updatedHost = host.copy(nickname = newNickname)
+                repository.saveHost(updatedHost)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to rename host")
+                }
+            }
+        }
+    }
+
     fun forgetHostKeys(host: Host) {
         viewModelScope.launch {
             try {
