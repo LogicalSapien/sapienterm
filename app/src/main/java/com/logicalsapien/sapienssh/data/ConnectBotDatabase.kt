@@ -29,6 +29,7 @@ import com.logicalsapien.sapienssh.data.dao.KnownHostDao
 import com.logicalsapien.sapienssh.data.dao.PortForwardDao
 import com.logicalsapien.sapienssh.data.dao.ProfileDao
 import com.logicalsapien.sapienssh.data.dao.PubkeyDao
+import com.logicalsapien.sapienssh.data.dao.QuickCommandDao
 import com.logicalsapien.sapienssh.data.entity.ColorPalette
 import com.logicalsapien.sapienssh.data.entity.ColorScheme
 import com.logicalsapien.sapienssh.data.entity.Host
@@ -36,6 +37,7 @@ import com.logicalsapien.sapienssh.data.entity.KnownHost
 import com.logicalsapien.sapienssh.data.entity.PortForward
 import com.logicalsapien.sapienssh.data.entity.Profile
 import com.logicalsapien.sapienssh.data.entity.Pubkey
+import com.logicalsapien.sapienssh.data.entity.QuickCommand
 
 /**
  * ConnectBot Room database.
@@ -57,6 +59,7 @@ import com.logicalsapien.sapienssh.data.entity.Pubkey
  * - Version 5: Added profiles table and profile_id column to hosts (manual migration)
  * - Version 6: Added force_size_rows and force_size_columns to profiles (AutoMigration)
  * - Version 7: Added ip_version column to hosts for IP version preference (AutoMigration)
+ * - Version 8: Added quick_commands table for reusable terminal commands (manual migration)
  * - Future versions: Use Room AutoMigration when possible for simple schema changes
  *
  * Security Considerations:
@@ -71,9 +74,10 @@ import com.logicalsapien.sapienssh.data.entity.Pubkey
         KnownHost::class,
         ColorScheme::class,
         ColorPalette::class,
-        Profile::class
+        Profile::class,
+        QuickCommand::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -91,13 +95,14 @@ abstract class ConnectBotDatabase : RoomDatabase() {
     abstract fun knownHostDao(): KnownHostDao
     abstract fun colorSchemeDao(): ColorSchemeDao
     abstract fun profileDao(): ProfileDao
+    abstract fun quickCommandDao(): QuickCommandDao
 
     companion object {
         /**
          * Current database schema version.
          * This is also used for JSON export/import versioning.
          */
-        const val SCHEMA_VERSION = 7
+        const val SCHEMA_VERSION = 8
 
         /**
          * Migration from version 4 to 5: Add profiles table and profile_id to hosts.
@@ -232,6 +237,26 @@ abstract class ConnectBotDatabase : RoomDatabase() {
                 // Recreate indices
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_hosts_nickname` ON `hosts` (`nickname`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_hosts_protocol_username_hostname_port` ON `hosts` (`protocol`, `username`, `hostname`, `port`)")
+            }
+        }
+
+        /**
+         * Migration from version 7 to 8: Add quick_commands table.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `quick_commands` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `command` TEXT NOT NULL,
+                        `category` TEXT,
+                        `created_at` INTEGER NOT NULL DEFAULT 0,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }
