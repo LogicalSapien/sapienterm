@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.padding
@@ -44,8 +43,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.MoreVert
@@ -63,7 +60,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -122,7 +118,6 @@ import com.logicalsapien.sapienssh.ui.components.InlinePrompt
 import com.logicalsapien.sapienssh.ui.components.ResizeDialog
 import com.logicalsapien.sapienssh.ui.components.UrlScanDialog
 import com.logicalsapien.sapienssh.ui.theme.terminal
-import com.logicalsapien.sapienssh.util.ExtendedKeyboardConfig
 import com.logicalsapien.sapienssh.util.PreferenceConstants
 import com.logicalsapien.sapienssh.util.rememberTerminalTypefaceResultFromStoredValue
 import timber.log.Timber
@@ -172,7 +167,6 @@ fun ConsoleScreen(
 
     // Read preferences
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
-    val extendedKeyboardConfig = remember { ExtendedKeyboardConfig.load(prefs) }
     var fullscreen by remember { mutableStateOf(prefs.getBoolean("fullscreen", false)) }
     var titleBarHide by remember { mutableStateOf(prefs.getBoolean("titlebarhide", false)) }
     val volumeKeysChangeFontSize = remember { prefs.getBoolean(PreferenceConstants.VOLUME_FONT, true) }
@@ -566,58 +560,27 @@ fun ConsoleScreen(
             }
             } // end Box
 
-            // Quick Commands toolbar - BELOW the terminal, not overlapping it
+            // Unified terminal bottom bar (Termius-style) - replaces the
+            // separate QuickCommandToolbar, ExtendedKeyboardStrip, and keyboard toggle
             if (currentBridge != null) {
                 val quickCommands by viewModel.quickCommands.collectAsState()
-                val isQuickCommandToolbarVisible by viewModel.isQuickCommandToolbarVisible.collectAsState()
 
-                if (quickCommands.isNotEmpty()) {
-                    QuickCommandToolbar(
-                        quickCommands = quickCommands,
-                        isVisible = isQuickCommandToolbarVisible,
-                        onToggleVisibility = { viewModel.toggleQuickCommandToolbar() },
-                        onCommandClick = { command ->
-                            viewModel.sendQuickCommand(command)
-                            handleTerminalInteraction()
-                        }
-                    )
-                }
-
-                // Extended keyboard strip - always visible, below terminal
-                ExtendedKeyboardStrip(
+                TerminalBottomBar(
                     bridge = currentBridge,
-                    config = extendedKeyboardConfig,
+                    quickCommands = quickCommands,
+                    showSoftwareKeyboard = showSoftwareKeyboard,
+                    onToggleKeyboard = {
+                        showSoftwareKeyboard = !showSoftwareKeyboard
+                        if (showSoftwareKeyboard) {
+                            termFocusRequester.requestFocus()
+                        }
+                    },
+                    onSendQuickCommand = { command ->
+                        viewModel.sendQuickCommand(command)
+                        handleTerminalInteraction()
+                    },
                     onInteraction = { handleTerminalInteraction() }
                 )
-            }
-
-            // Keyboard toggle bar - always visible at the bottom
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(36.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            showSoftwareKeyboard = !showSoftwareKeyboard
-                            if (showSoftwareKeyboard) {
-                                termFocusRequester.requestFocus()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (showSoftwareKeyboard) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
-                            contentDescription = if (showSoftwareKeyboard) "Hide keyboard" else "Show keyboard",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         } // end Column
 
