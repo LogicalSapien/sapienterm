@@ -39,19 +39,16 @@ appVersioning {
 }
 
 android {
-    namespace = "org.connectbot"
+    namespace = "com.logicalsapien.sapienssh"
     compileSdk =
         libs.versions.compileSdk
             .get()
             .toInt()
 
     defaultConfig {
-        applicationId = "org.connectbot"
+        applicationId = "com.logicalsapien.sapienssh"
 
-        minSdk =
-            libs.versions.minSdk
-                .get()
-                .toInt()
+        minSdk = 26
         targetSdk =
             libs.versions.targetSdk
                 .get()
@@ -64,8 +61,8 @@ android {
             debugSymbolLevel = "full"
         }
 
-        testApplicationId = "org.connectbot.tests"
-        testInstrumentationRunner = "org.connectbot.HiltTestRunner"
+        testApplicationId = "com.logicalsapien.sapienssh.tests"
+        testInstrumentationRunner = "com.logicalsapien.sapienssh.HiltTestRunner"
 
         // The following argument makes the Android Test Orchestrator run its
         // "pm clear" command after each test invocation. This command ensures
@@ -206,7 +203,7 @@ tasks.withType<JavaCompile>().configureEach {
         checks.put("ClassNewInstance", CheckSeverity.OFF)
         checks.put("DefaultCharset", CheckSeverity.OFF)
         checks.put("SynchronizeOnNonFinalField", CheckSeverity.OFF)
-        excludedPaths.set(".*/src/main/java/de/mud/.*|.*/src/main/java/org/apache/.*|.*/src/main/java/org/keyczar/.*")
+        excludedPaths.set(".*/src/main/java/de/mud/.*|.*/src/main/java/org/apache/.*|.*/src/main/java/org/keyczar/.*|.*/src/main/java/com/logicalsapien/.*")
     }
 }
 
@@ -225,7 +222,7 @@ val generateExportSchema by tasks.registering {
     val excludedFields = setOf("last_connect", "host_key_algo")
 
     // Read schema version from ConnectBotDatabase.kt to avoid duplicate definitions
-    val databaseFile = file("src/main/java/org/connectbot/data/ConnectBotDatabase.kt")
+    val databaseFile = file("src/main/java/com/logicalsapien/sapienssh/data/ConnectBotDatabase.kt")
     val schemaVersion =
         databaseFile
             .readText()
@@ -234,7 +231,7 @@ val generateExportSchema by tasks.registering {
             ?.get(1)
             ?.toInt()
             ?: error("Could not find SCHEMA_VERSION in $databaseFile")
-    val inputFile = file("schemas/org.connectbot.data.ConnectBotDatabase/$schemaVersion.json")
+    val inputFile = file("schemas/com.logicalsapien.sapienssh.data.ConnectBotDatabase/$schemaVersion.json")
     val outputDir = file("build/generated/exportSchema")
     val outputFile = file("$outputDir/export_schema.json")
 

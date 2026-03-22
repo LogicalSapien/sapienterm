@@ -837,7 +837,7 @@
 	<string name="dialog_message_reset_all">"This will reset all 256 colors to their default values. This action cannot be undone."</string>
 
 	<!-- Displayed in the notification bar that connections are active -->
-	<string name="app_is_running">"ConnectBot is running"</string>
+	<string name="app_is_running">"SapienSSH is running"</string>
 
 	<!-- RGB color picker labels -->
 	<!-- Label for the red color component slider (0-255) in the RGB color picker -->
@@ -1359,11 +1359,11 @@
 	<!-- Category title for security preferences in settings -->
 	<string name="pref_security_category">Security</string>
 	<!-- Title shown on the authentication lock screen -->
-	<string name="auth_screen_title">ConnectBot is locked</string>
+	<string name="auth_screen_title">SapienSSH is locked</string>
 	<!-- Button text to trigger authentication on the lock screen -->
 	<string name="auth_screen_unlock_button">Tap to unlock</string>
 	<!-- Title shown in the biometric/device credential authentication prompt -->
-	<string name="auth_prompt_title">Unlock ConnectBot</string>
+	<string name="auth_prompt_title">Unlock SapienSSH</string>
 	<!-- Subtitle shown in the biometric/device credential authentication prompt -->
 	<string name="auth_prompt_subtitle">Verify your identity to continue</string>
 </resources>
