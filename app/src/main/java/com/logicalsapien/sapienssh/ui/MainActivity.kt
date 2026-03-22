@@ -232,7 +232,12 @@ class MainActivity : AppCompatActivity() {
                     pendingHostConnection?.let { host ->
                         Timber.d("Navigating to console for pending host: ${host.nickname}")
                         pendingHostConnection = null
-                        navController.navigate("${NavDestinations.CONSOLE}/${host.id}")
+                        navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
+                            popUpTo(NavDestinations.HOST_LIST) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
                     }
                 }
             }
@@ -250,7 +255,12 @@ class MainActivity : AppCompatActivity() {
                             }
                             // Also handle pending host connection
                             pendingHostConnection?.let { host ->
-                                navController.navigate("${NavDestinations.CONSOLE}/${host.id}")
+                                navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
+                                    popUpTo(NavDestinations.HOST_LIST) {
+                                        inclusive = false
+                                    }
+                                    launchSingleTop = true
+                                }
                                 pendingHostConnection = null
                             }
                         },
@@ -275,7 +285,14 @@ class MainActivity : AppCompatActivity() {
 
                 if (!persistConnections || NotificationPermissionHelper.isNotificationPermissionGranted(context)) {
                     // Either persistence is disabled (no permission needed) or permission granted, navigate immediately
-                    navController.navigate("${NavDestinations.CONSOLE}/${host.id}")
+                    // Pop any existing console screen so only one exists on the stack
+                    navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
+                        // Pop any existing console entry so we don't stack multiple console screens
+                        popUpTo(NavDestinations.HOST_LIST) {
+                            inclusive = false
+                        }
+                        launchSingleTop = true
+                    }
                 } else {
                     // Persistence is enabled but no permission - need to request permission
                     Timber.d("Requesting notification permission before connection")
@@ -361,6 +378,9 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 controller.navigate("${NavDestinations.CONSOLE}/${bridge.host.id}") {
+                    popUpTo(NavDestinations.HOST_LIST) {
+                        inclusive = false
+                    }
                     launchSingleTop = true
                 }
             } catch (e: Exception) {

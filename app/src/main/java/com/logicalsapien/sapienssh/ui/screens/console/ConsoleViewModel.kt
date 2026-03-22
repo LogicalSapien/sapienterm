@@ -58,8 +58,10 @@ class ConsoleViewModel @Inject constructor(
     private val dispatchers: CoroutineDispatchers,
     private val quickCommandRepository: QuickCommandRepository
 ) : ViewModel() {
-    private val hostId: Long = savedStateHandle.get<Long>("hostId") ?: -1L
+    private var hostId: Long = savedStateHandle.get<Long>("hostId") ?: -1L
     private var terminalManager: TerminalManager? = null
+    // Track whether we've already set the initial bridge for this hostId
+    private var initialBridgeSelected = false
 
     private val _uiState = MutableStateFlow(ConsoleUiState())
     val uiState: StateFlow<ConsoleUiState> = _uiState.asStateFlow()
@@ -214,38 +216,61 @@ class ConsoleViewModel @Inject constructor(
     }
 
     private fun updateBridges(allBridges: List<TerminalBridge>) {
-        // If hostId is provided, try to find the bridge for this specific host
-        val filteredBridges = if (hostId != -1L) {
-            allBridges.filter { bridge ->
-                bridge.host.id == hostId
-            }
-        } else {
-            allBridges
-        }
-
         _uiState.update {
-            val newBridges = filteredBridges.ifEmpty { allBridges }
-            val newIndex = if (it.currentBridgeIndex >= newBridges.size) {
-                // Adjust index if it's now out of range
-                (newBridges.size - 1).coerceAtLeast(0)
+            val newIndex = if (!initialBridgeSelected && hostId != -1L) {
+                // First time: select the bridge matching the hostId from navigation
+                val targetIndex = allBridges.indexOfFirst { bridge -> bridge.host.id == hostId }
+                if (targetIndex >= 0) {
+                    initialBridgeSelected = true
+                    targetIndex
+                } else {
+                    // Target bridge not yet available, keep current index
+                    it.currentBridgeIndex.coerceIn(0, (allBridges.size - 1).coerceAtLeast(0))
+                }
+            } else if (it.currentBridgeIndex >= allBridges.size) {
+                // Adjust index if it's now out of range (e.g., a bridge was closed)
+                (allBridges.size - 1).coerceAtLeast(0)
             } else {
                 it.currentBridgeIndex
             }
 
-            // Stop loading when we have bridges, or when we're showing all bridges (hostId == -1)
-            // If waiting for a specific host, keep loading until that bridge appears
-            val shouldStopLoading = if (hostId != -1L) {
-                filteredBridges.isNotEmpty()
+            // Stop loading when the target bridge is available (or when hostId == -1)
+            val targetBridgeAvailable = if (hostId != -1L) {
+                allBridges.any { bridge -> bridge.host.id == hostId }
             } else {
-                true // Always stop loading when showing all bridges
+                true
             }
 
             it.copy(
-                bridges = newBridges,
+                bridges = allBridges,
                 currentBridgeIndex = newIndex,
-                isLoading = if (shouldStopLoading) false else it.isLoading,
+                isLoading = if (targetBridgeAvailable) false else it.isLoading,
                 error = null
             )
+        }
+    }
+
+    /**
+     * Called when navigating to an existing ConsoleScreen with a new hostId.
+     * Updates the selected bridge to match the new hostId and creates
+     * the connection if needed.
+     */
+    fun navigateToHost(newHostId: Long) {
+        if (newHostId == -1L) return
+        hostId = newHostId
+        initialBridgeSelected = false
+
+        // Try to select the bridge for this host immediately
+        val currentBridges = _uiState.value.bridges
+        val targetIndex = currentBridges.indexOfFirst { it.host.id == newHostId }
+        if (targetIndex >= 0) {
+            initialBridgeSelected = true
+            _uiState.update { it.copy(currentBridgeIndex = targetIndex) }
+        } else {
+            // Bridge doesn't exist yet, create it
+            viewModelScope.launch {
+                ensureBridgeExists()
+            }
         }
     }
 

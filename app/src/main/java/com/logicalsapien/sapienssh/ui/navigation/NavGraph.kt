@@ -99,12 +99,14 @@ fun ConnectBotNavHost(
             arguments = listOf(
                 navArgument(NavArgs.HOST_ID) { type = NavType.LongType }
             )
-        ) {
+        ) { backStackEntry ->
+            val hostId = backStackEntry.arguments?.getLong(NavArgs.HOST_ID) ?: -1L
             ConsoleScreen(
                 onNavigateBack = { navController.safePopBackStack() },
                 onNavigateToPortForwards = { hostIdForPortForwards ->
                     navController.navigateSafely("${NavDestinations.PORT_FORWARD_LIST}/$hostIdForPortForwards")
-                }
+                },
+                hostId = hostId
             )
         }
 

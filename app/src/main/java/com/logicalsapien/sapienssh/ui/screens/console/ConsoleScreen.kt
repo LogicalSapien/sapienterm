@@ -147,6 +147,7 @@ fun ConsoleScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPortForwards: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    hostId: Long = -1L,
     viewModel: ConsoleViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -158,6 +159,14 @@ fun ConsoleScreen(
 
     LaunchedEffect(terminalManager) {
         terminalManager?.let { viewModel.setTerminalManager(it) }
+    }
+
+    // When hostId changes (e.g., navigating to a new host with launchSingleTop),
+    // tell the ViewModel to switch to (or create) the new bridge
+    LaunchedEffect(hostId) {
+        if (hostId != -1L) {
+            viewModel.navigateToHost(hostId)
+        }
     }
 
     // Read preferences
