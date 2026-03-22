@@ -426,6 +426,8 @@ class SSH :
                     true
                 )
                 if (password != null && connection?.authenticateWithPassword(currentHost.username, password) == true) {
+                    // Offer to save the password if not already saved
+                    offerSavePassword(currentHost, password)
                     finishConnection()
                 } else {
                     bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_pass_fail))
@@ -686,6 +688,40 @@ class SSH :
         } catch (e: Exception) {
             Timber.e(e, "Error trying linked credential authentication")
             return false
+        }
+    }
+
+    /**
+     * Offer the user the option to save the password to the Credentials vault.
+     * Only offers if there is no saved password and no linked credential already.
+     */
+    private fun offerSavePassword(currentHost: Host, password: String) {
+        // Skip if there is already a saved password or a linked credential
+        val alreadySaved = manager?.securePasswordStorage?.getPassword(currentHost.id) != null
+        if (alreadySaved || currentHost.credentialId != null) return
+
+        try {
+            val save = bridge?.requestBooleanPrompt(
+                null,
+                manager?.res?.getString(R.string.save_password_prompt) ?: "Save password to Credentials?"
+            )
+            if (save == true) {
+                val credentialRepo = manager?.credentialRepository ?: return
+                runBlocking {
+                    try {
+                        credentialRepo.savePassword(
+                            label = currentHost.nickname,
+                            password = password
+                        )
+                        bridge?.outputLine(manager?.res?.getString(R.string.password_saved))
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to save password to credential vault")
+                        bridge?.outputLine(manager?.res?.getString(R.string.password_save_failed))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Password save prompt cancelled or failed")
         }
     }
 

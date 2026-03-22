@@ -127,6 +127,11 @@ class TerminalBridge {
      */
     var onTextInputRequested: (() -> Unit)? = null
 
+    /**
+     * Custom display name for the session tab. When null, the host nickname is used.
+     */
+    var customTabName: String? = null
+
     private val _bellEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 10)
     val bellEvents: SharedFlow<Unit> = _bellEvents.asSharedFlow()
 

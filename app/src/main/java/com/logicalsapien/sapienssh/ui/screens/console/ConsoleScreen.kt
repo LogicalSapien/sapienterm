@@ -118,8 +118,6 @@ import com.logicalsapien.sapienssh.ui.LocalTerminalManager
 import com.logicalsapien.sapienssh.ui.components.FloatingTextInputDialog
 import com.logicalsapien.sapienssh.ui.components.InlinePrompt
 import com.logicalsapien.sapienssh.ui.components.ResizeDialog
-import com.logicalsapien.sapienssh.ui.components.TERMINAL_KEYBOARD_HEIGHT_DP
-import com.logicalsapien.sapienssh.ui.components.TerminalKeyboard
 import com.logicalsapien.sapienssh.ui.components.UrlScanDialog
 import com.logicalsapien.sapienssh.ui.theme.terminal
 import com.logicalsapien.sapienssh.util.ExtendedKeyboardConfig
@@ -350,20 +348,10 @@ fun ConsoleScreen(
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
             .union(WindowInsets.imeAnimationTarget)
     ) { innerPadding ->
-        // Session tab bar - always visible when bridges exist
-        if (uiState.bridges.isNotEmpty() && !uiState.isLoading) {
-            SessionTabBar(
-                bridges = uiState.bridges,
-                currentIndex = uiState.currentBridgeIndex,
-                onSelectTab = { viewModel.selectBridge(it) },
-                onCloseTab = { bridge -> viewModel.disconnectBridge(bridge) }
-            )
-        }
-
         // Terminal content with keyboard overlay
         // This Box is transparent to accessibility - it's just for layout
         val layoutDirection = LocalLayoutDirection.current
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .consumeWindowInsets(innerPadding)
@@ -374,7 +362,23 @@ fun ConsoleScreen(
                     bottom = innerPadding.calculateBottomPadding()
                 )
                 .windowInsetsPadding(WindowInsets.imeAnimationTarget)
-                .onPreviewKeyEvent { keyEvent ->
+        ) {
+            // Session tab bar - always visible when bridges exist
+            if (uiState.bridges.isNotEmpty() && !uiState.isLoading) {
+                SessionTabBar(
+                    bridges = uiState.bridges,
+                    currentIndex = uiState.currentBridgeIndex,
+                    onSelectTab = { viewModel.selectBridge(it) },
+                    onCloseTab = { bridge -> viewModel.disconnectBridge(bridge) },
+                    onRenameTab = { index, newName -> viewModel.renameTab(index, newName) }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .onPreviewKeyEvent { keyEvent ->
                     if (keyEvent.type == KeyEventType.KeyDown) {
                         when {
                             // Ctrl+Shift+C: copy selection
@@ -467,10 +471,7 @@ fun ConsoleScreen(
                         Terminal(
                             terminalEmulator = bridge.terminalEmulator,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    bottom = if (keyboardAlwaysVisible) TERMINAL_KEYBOARD_HEIGHT_DP.dp else 0.dp
-                                ),
+                                .fillMaxSize(),
                             typeface = fontResult.typeface,
                             initialFontSize = fontSize.sp,
                             keyboardEnabled = true,
@@ -500,13 +501,12 @@ fun ConsoleScreen(
                             }
                         }
 
-                        // Terminal keyboard overlay + Quick Commands toolbar
+                        // Extended keyboard strip + Quick Commands toolbar overlay
                         // Must be BEFORE prompts so prompts appear on top
-                        // Fade in/out animation matches ConsoleActivity (100ms duration)
                         Column(
                             modifier = Modifier.align(Alignment.BottomCenter)
                         ) {
-                            // Quick Commands toolbar (above the keyboard)
+                            // Quick Commands toolbar (above the keyboard strip)
                             val quickCommands by viewModel.quickCommands.collectAsState()
                             val isQuickCommandToolbarVisible by viewModel.isQuickCommandToolbarVisible.collectAsState()
 
@@ -522,37 +522,16 @@ fun ConsoleScreen(
                                 )
                             }
 
-                            // Extended keyboard strip (below Quick Commands, above TerminalKeyboard)
-                            if (showExtraKeyboard) {
-                                ExtendedKeyboardStrip(
-                                    bridge = bridge,
-                                    config = extendedKeyboardConfig,
-                                    onInteraction = { handleTerminalInteraction() }
-                                )
-                            }
-
+                            // Extended keyboard strip (replaces the old TerminalKeyboard)
                             AnimatedVisibility(
                                 visible = showExtraKeyboard,
                                 enter = fadeIn(animationSpec = tween(durationMillis = 100)),
                                 exit = fadeOut(animationSpec = tween(durationMillis = 100))
                             ) {
-                                TerminalKeyboard(
+                                ExtendedKeyboardStrip(
                                     bridge = bridge,
-                                    onInteraction = { handleTerminalInteraction() },
-                                    onHideIme = {
-                                        showSoftwareKeyboard = false
-                                    },
-                                    onShowIme = {
-                                        showSoftwareKeyboard = true
-                                    },
-                                    onOpenTextInput = {
-                                        showTextInputDialog = true
-                                    },
-                                    onScrollInProgressChange = { inProgress ->
-                                        keyboardScrollInProgress = inProgress
-                                    },
-                                    imeVisible = imeVisible,
-                                    playAnimation = !hasPlayedKeyboardAnimation
+                                    config = extendedKeyboardConfig,
+                                    onInteraction = { handleTerminalInteraction() }
                                 )
                             }
                         }
@@ -577,7 +556,7 @@ fun ConsoleScreen(
                         )
 
                         // Show reconnect/close overlay when session is disconnected
-                        AnimatedVisibility(
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = disconnected,
                             enter = slideInVertically(initialOffsetY = { it }),
                             exit = slideOutVertically(targetOffsetY = { it }),
@@ -618,7 +597,8 @@ fun ConsoleScreen(
                     }
                 }
             }
-        }
+            } // end Box
+        } // end Column
 
         // Dialogs
         if (showUrlScanDialog) {

@@ -1466,4 +1466,16 @@
 	<string name="connection_renamed">Connection renamed</string>
 	<!-- Close tab content description for session tabs -->
 	<string name="close_tab">Close tab</string>
+	<!-- Rename session tab dialog title -->
+	<string name="rename_tab_title">Rename Tab</string>
+	<!-- Rename session tab hint -->
+	<string name="rename_tab_hint">Tab name</string>
+	<!-- Save password prompt shown after successful password authentication -->
+	<string name="save_password_prompt">Save password to Credentials?</string>
+	<!-- Save password button label -->
+	<string name="save_password_action">Save</string>
+	<!-- Password saved confirmation message -->
+	<string name="password_saved">Password saved to Credentials</string>
+	<!-- Password save failed message -->
+	<string name="password_save_failed">Failed to save password</string>
 </resources>

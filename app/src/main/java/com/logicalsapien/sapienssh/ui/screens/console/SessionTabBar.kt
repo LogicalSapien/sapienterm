@@ -17,7 +17,9 @@
 
 package com.logicalsapien.sapienssh.ui.screens.console
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -29,12 +31,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -46,8 +56,9 @@ import com.logicalsapien.sapienssh.service.TerminalBridge
 /**
  * Horizontal scrollable tab bar for switching between terminal sessions.
  *
- * Each tab shows the connection nickname and a close button.
+ * Each tab shows the connection nickname (or custom name) and a close button.
  * The active tab is highlighted with the primary color.
+ * Long press on a tab opens a rename dialog.
  */
 @Composable
 fun SessionTabBar(
@@ -55,8 +66,11 @@ fun SessionTabBar(
     currentIndex: Int,
     onSelectTab: (Int) -> Unit,
     onCloseTab: (TerminalBridge) -> Unit,
+    onRenameTab: (Int, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
+    var renameDialogIndex by remember { mutableStateOf<Int?>(null) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -69,27 +83,49 @@ fun SessionTabBar(
     ) {
         bridges.forEachIndexed { index, bridge ->
             val isSelected = index == currentIndex
+            val displayName = bridge.customTabName ?: bridge.host.nickname
             SessionTab(
-                nickname = bridge.host.nickname,
+                nickname = displayName,
                 isSelected = isSelected,
                 onClick = { onSelectTab(index) },
+                onLongClick = { renameDialogIndex = index },
                 onClose = { onCloseTab(bridge) }
             )
         }
     }
+
+    // Rename dialog
+    renameDialogIndex?.let { index ->
+        val bridge = bridges.getOrNull(index) ?: return@let
+        val currentName = bridge.customTabName ?: bridge.host.nickname
+        RenameTabDialog(
+            currentName = currentName,
+            onDismiss = { renameDialogIndex = null },
+            onConfirm = { newName ->
+                onRenameTab(index, newName)
+                renameDialogIndex = null
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionTab(
     nickname: String,
     isSelected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        onClick = onClick,
-        modifier = modifier.height(32.dp),
+        modifier = modifier
+            .height(32.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
@@ -130,4 +166,42 @@ private fun SessionTab(
             }
         }
     }
+}
+
+@Composable
+private fun RenameTabDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.rename_tab_title))
+        },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(stringResource(R.string.rename_tab_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank()
+            ) {
+                Text(stringResource(R.string.button_ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.delete_neg))
+            }
+        }
+    )
 }

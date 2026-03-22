@@ -279,6 +279,17 @@ class ConsoleViewModel @Inject constructor(
     }
 
     /**
+     * Rename the tab at the given index with a custom display name.
+     * The name is stored on the TerminalBridge instance (not persisted).
+     */
+    fun renameTab(index: Int, newName: String) {
+        val bridge = _uiState.value.bridges.getOrNull(index) ?: return
+        bridge.customTabName = newName.ifBlank { null }
+        // Trigger recomposition
+        _uiState.update { it.copy(revision = it.revision + 1) }
+    }
+
+    /**
      * Toggle visibility of the quick command toolbar chips.
      */
     fun toggleQuickCommandToolbar() {

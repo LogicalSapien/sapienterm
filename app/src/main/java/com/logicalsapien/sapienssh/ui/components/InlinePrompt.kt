@@ -30,12 +30,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -45,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -63,6 +68,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -80,6 +86,9 @@ import com.logicalsapien.sapienssh.ui.theme.terminal
 /**
  * Non-modal inline prompt that appears at the bottom of the screen,
  * similar to the old ConsoleActivity's prompt UI.
+ *
+ * Host key fingerprint prompts are shown as a full MD3 AlertDialog
+ * with the keyboard hidden for a clean verification experience.
  */
 @Composable
 fun InlinePrompt(
@@ -100,17 +109,30 @@ fun InlinePrompt(
         wasVisible = promptRequest != null
     }
 
+    // Host key fingerprint prompt is shown as a proper dialog (not inline)
+    // This prevents keyboard overlap issues
+    if (promptRequest is PromptRequest.HostKeyFingerprintPrompt) {
+        HostKeyFingerprintDialog(
+            prompt = promptRequest,
+            onAccept = { onResponse(PromptResponse.BooleanResponse(true)) },
+            onReject = { onResponse(PromptResponse.BooleanResponse(false)) }
+        )
+    }
+
+    // Other prompts remain inline at the bottom
+    val inlinePrompt = promptRequest?.takeIf { it !is PromptRequest.HostKeyFingerprintPrompt }
+
     AnimatedVisibility(
-        visible = promptRequest != null,
+        visible = inlinePrompt != null,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = modifier
     ) {
-        when (promptRequest) {
+        when (inlinePrompt) {
             is PromptRequest.BooleanPrompt -> {
                 BooleanPromptContent(
-                    instructions = promptRequest.instructions,
-                    message = promptRequest.message,
+                    instructions = inlinePrompt.instructions,
+                    message = inlinePrompt.message,
                     onYes = { onResponse(PromptResponse.BooleanResponse(true)) },
                     onNo = { onResponse(PromptResponse.BooleanResponse(false)) }
                 )
@@ -118,9 +140,9 @@ fun InlinePrompt(
 
             is PromptRequest.StringPrompt -> {
                 StringPromptContent(
-                    instructions = promptRequest.instructions,
-                    hint = promptRequest.hint,
-                    isPassword = promptRequest.isPassword,
+                    instructions = inlinePrompt.instructions,
+                    hint = inlinePrompt.hint,
+                    isPassword = inlinePrompt.isPassword,
                     onSubmit = { value -> onResponse(PromptResponse.StringResponse(value)) },
                     onCancel = onCancel
                 )
@@ -130,21 +152,13 @@ fun InlinePrompt(
                 // Biometric prompts are handled by BiometricPromptHandler in PromptDialogs.kt
                 // which uses the system BiometricPrompt dialog
                 BiometricPromptHandler(
-                    prompt = promptRequest,
+                    prompt = inlinePrompt,
                     onResponse = onResponse
                 )
             }
 
-            is PromptRequest.HostKeyFingerprintPrompt -> {
-                HostKeyFingerprintPromptContent(
-                    prompt = promptRequest,
-                    onAccept = { onResponse(PromptResponse.BooleanResponse(true)) },
-                    onReject = { onResponse(PromptResponse.BooleanResponse(false)) }
-                )
-            }
-
-            null -> {
-                /* No prompt */
+            else -> {
+                /* No prompt or HostKeyFingerprintPrompt (handled above as dialog) */
             }
         }
     }
@@ -277,15 +291,25 @@ private fun StringPromptContent(
     }
 }
 
+/**
+ * Modern Material Design 3 AlertDialog for host key fingerprint verification.
+ * Hides the soft keyboard when shown so the dialog is fully visible.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HostKeyFingerprintPromptContent(
+private fun HostKeyFingerprintDialog(
     prompt: PromptRequest.HostKeyFingerprintPrompt,
     onAccept: () -> Unit,
     onReject: () -> Unit
 ) {
-    val terminalColors = MaterialTheme.colorScheme.terminal
     val clipboardManager = LocalClipboardManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val tealPrimary = Color(0xFF00897B)
+
+    // Hide the soft keyboard when this dialog appears
+    LaunchedEffect(Unit) {
+        keyboardController?.hide()
+    }
 
     // Fingerprint format options
     val formats = listOf(
@@ -295,159 +319,175 @@ private fun HostKeyFingerprintPromptContent(
         stringResource(R.string.fingerprint_format_md5) to prompt.md5
     )
 
-    var selectedFormatIndex by remember { mutableIntStateOf(0) } // SHA-256 is first (default)
+    var selectedFormatIndex by remember { mutableIntStateOf(0) }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(terminalColors.overlayBackground)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.host_key_verification_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = terminalColors.overlayText,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Text(
-            text = prompt.hostname,
-            style = MaterialTheme.typography.bodyLarge,
-            color = terminalColors.overlayTextSecondary,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = stringResource(R.string.host_key_type_and_size, prompt.keyType, prompt.keySize),
-            style = MaterialTheme.typography.bodyMedium,
-            color = terminalColors.overlayText
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Display selected fingerprint with copy button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+    AlertDialog(
+        onDismissRequest = onReject,
+        title = {
             Text(
-                text = formats[selectedFormatIndex].second,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontFamily = FontFamily.Monospace
-                ),
-                color = terminalColors.overlayText,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-                    .heightIn(max = 200.dp)
-                    .verticalScroll(rememberScrollState())
+                text = stringResource(R.string.host_key_verification_title),
+                style = MaterialTheme.typography.headlineSmall
             )
-
-            IconButton(
-                onClick = {
-                    clipboardManager.setText(AnnotatedString(formats[selectedFormatIndex].second))
-                }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
-                Icon(
-                    imageVector = Icons.Filled.ContentCopy,
-                    contentDescription = stringResource(R.string.fingerprint_copy_description),
-                    tint = terminalColors.overlayTextSecondary
+                // Host info card
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = prompt.hostname,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.host_key_type_and_size,
+                                prompt.keyType,
+                                prompt.keySize
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Fingerprint format selector (MD3 dropdown)
+                ExposedDropdownMenuBox(
+                    expanded = dropdownExpanded,
+                    onExpandedChange = { dropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = formats[selectedFormatIndex].first,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = {
+                            Text(stringResource(R.string.fingerprint_format_header))
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        formats.forEachIndexed { index, (label, _) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    selectedFormatIndex = index
+                                    dropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Fingerprint display in a card with monospace font and copy button
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        SelectionContainer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(max = 180.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = formats[selectedFormatIndex].second,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                clipboardManager.setText(
+                                    AnnotatedString(formats[selectedFormatIndex].second)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ContentCopy,
+                                contentDescription = stringResource(R.string.fingerprint_copy_description),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(R.string.prompt_continue_connecting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Fingerprint format selector
-        ExposedDropdownMenuBox(
-            expanded = dropdownExpanded,
-            onExpandedChange = { dropdownExpanded = it }
-        ) {
-            TextField(
-                value = formats[selectedFormatIndex].first,
-                onValueChange = {},
-                readOnly = true,
-                textStyle = MaterialTheme.typography.bodySmall,
-                label = {
-                    Text(stringResource(R.string.fingerprint_format_header))
-                },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = terminalColors.overlayText,
-                    unfocusedTextColor = terminalColors.overlayText,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = terminalColors.overlayTextSecondary,
-                    unfocusedIndicatorColor = terminalColors.overlayTextSecondary.copy(alpha = 0.5f),
-                    focusedLabelColor = terminalColors.overlayTextSecondary,
-                    unfocusedLabelColor = terminalColors.overlayTextSecondary
-                ),
-                modifier = Modifier
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-            )
-
-            ExposedDropdownMenu(
-                expanded = dropdownExpanded,
-                onDismissRequest = { dropdownExpanded = false }
-            ) {
-                formats.forEachIndexed { index, (label, _) ->
-                    DropdownMenuItem(
-                        text = { Text(label) },
-                        onClick = {
-                            selectedFormatIndex = index
-                            dropdownExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = stringResource(R.string.prompt_continue_connecting),
-            style = MaterialTheme.typography.bodyLarge,
-            color = terminalColors.overlayText
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onReject) {
-                Text(stringResource(R.string.button_no), color = terminalColors.overlayText)
-            }
+        },
+        confirmButton = {
             Button(
                 onClick = onAccept,
-                modifier = Modifier.padding(start = 8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = tealPrimary
+                )
             ) {
                 Text(stringResource(R.string.button_yes))
             }
+        },
+        dismissButton = {
+            TextButton(onClick = onReject) {
+                Text(stringResource(R.string.button_no))
+            }
         }
-    }
+    )
 }
 
 @Preview
 @Composable
-private fun HostKeyFingerprintPromptPreview() {
-    HostKeyFingerprintPromptContent(
-        prompt = PromptRequest.HostKeyFingerprintPrompt(
-            hostname = "example.com",
-            keyType = "Ed25519",
-            keySize = 256,
-            serverHostKey = byteArrayOf(),
-            randomArt = "wobble",
-            bubblebabble = "babble",
-            sha256 = "sha256",
-            md5 = "md5"
-        ),
-        onAccept = { },
-        onReject = { }
-    )
+private fun HostKeyFingerprintDialogPreview() {
+    MaterialTheme {
+        HostKeyFingerprintDialog(
+            prompt = PromptRequest.HostKeyFingerprintPrompt(
+                hostname = "example.com",
+                keyType = "Ed25519",
+                keySize = 256,
+                serverHostKey = byteArrayOf(),
+                randomArt = "+--[ED25519 256]--+\n|       .o=o..    |\n|      . oo+.o    |\n+----[SHA256]-----+",
+                bubblebabble = "xebab-dybyg-fezez-baveb-duxyx",
+                sha256 = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8",
+                md5 = "16:27:ac:a5:76:28:2d:36:63:1b:56:4d:eb:df:a6:48"
+            ),
+            onAccept = { },
+            onReject = { }
+        )
+    }
 }
