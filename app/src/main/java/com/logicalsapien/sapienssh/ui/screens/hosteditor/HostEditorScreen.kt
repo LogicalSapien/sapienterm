@@ -66,6 +66,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.logicalsapien.sapienssh.BuildConfig
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.data.entity.ColorScheme
+import com.logicalsapien.sapienssh.data.entity.Credential
+import com.logicalsapien.sapienssh.data.entity.CredentialType
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.data.entity.Profile
 import com.logicalsapien.sapienssh.data.entity.Pubkey
@@ -108,6 +110,7 @@ fun HostEditorScreen(
         onPostLoginChange = viewModel::updatePostLogin,
         onJumpHostChange = viewModel::updateJumpHostId,
         onIpVersionChange = viewModel::updateIpVersion,
+        onCredentialChange = viewModel::updateCredentialId,
         onPasswordChange = viewModel::updatePassword,
         onClearPassword = viewModel::clearSavedPassword,
         onSaveHost = { expandedMode -> viewModel.saveHost(expandedMode) },
@@ -138,6 +141,7 @@ fun HostEditorScreenContent(
     onPostLoginChange: (String) -> Unit,
     onJumpHostChange: (Long?) -> Unit,
     onIpVersionChange: (String) -> Unit,
+    onCredentialChange: (Long?) -> Unit,
     onPasswordChange: (String) -> Unit,
     onClearPassword: () -> Unit,
     onSaveHost: (Boolean) -> Unit,
@@ -374,6 +378,14 @@ fun HostEditorScreenContent(
                                 Text(stringResource(R.string.hostpref_clear_password))
                             }
                         }
+
+                        // Credential picker (SSH only)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                        CredentialSelector(
+                            credentialId = uiState.credentialId,
+                            availableCredentials = uiState.availableCredentials,
+                            onCredentialSelect = onCredentialChange
+                        )
                     }
                 }
             }
@@ -831,6 +843,153 @@ private fun PubkeySelector(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun CredentialSelector(
+    credentialId: Long?,
+    availableCredentials: List<Credential>,
+    onCredentialSelect: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // Build display label for the selected credential
+    val selectedLabel = if (credentialId == null) {
+        stringResource(R.string.hostpref_credential_none)
+    } else {
+        val cred = availableCredentials.find { it.id == credentialId }
+        if (cred != null) {
+            val typeLabel = when (cred.type) {
+                CredentialType.PASSWORD -> "Password"
+                CredentialType.SSH_KEY -> "SSH Key"
+            }
+            "${cred.label} ($typeLabel)"
+        } else {
+            stringResource(R.string.hostpref_credential_none)
+        }
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.hostpref_credential_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        Text(
+            text = stringResource(R.string.hostpref_credential_summary),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it }
+        ) {
+            OutlinedTextField(
+                value = selectedLabel,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                // "None (manual)" option
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.hostpref_credential_none)) },
+                    onClick = {
+                        onCredentialSelect(null)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+
+                // Password credentials
+                val passwordCredentials = availableCredentials.filter { it.type == CredentialType.PASSWORD }
+                if (passwordCredentials.isNotEmpty()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Passwords",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = {},
+                        enabled = false,
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                    passwordCredentials.forEach { cred ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(cred.label)
+                                    Text(
+                                        text = "Password",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onCredentialSelect(cred.id)
+                                expanded = false
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        )
+                    }
+                }
+
+                // SSH Key credentials
+                val sshKeyCredentials = availableCredentials.filter { it.type == CredentialType.SSH_KEY }
+                if (sshKeyCredentials.isNotEmpty()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "SSH Keys",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        onClick = {},
+                        enabled = false,
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                    sshKeyCredentials.forEach { cred ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(cred.label)
+                                    Text(
+                                        text = "SSH Key",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onCredentialSelect(cred.id)
+                                expanded = false
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun ProfileSelector(
     profileId: Long?,
     availableProfiles: List<Profile>,
@@ -1273,6 +1432,7 @@ private fun HostEditorScreenPreview() {
             onPostLoginChange = {},
             onJumpHostChange = {},
             onIpVersionChange = {},
+            onCredentialChange = {},
             onPasswordChange = {},
             onClearPassword = {},
             onSaveHost = {}

@@ -146,6 +146,9 @@ class TerminalManager :
     @Inject
     internal lateinit var securePasswordStorage: com.logicalsapien.sapienssh.util.SecurePasswordStorage
 
+    @Inject
+    internal lateinit var credentialRepository: com.logicalsapien.sapienssh.data.CredentialRepository
+
     private val binder: IBinder = TerminalBinder()
 
     internal lateinit var connectivityMonitor: ConnectivityMonitor

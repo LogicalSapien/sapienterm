@@ -63,6 +63,7 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
  * - Version 7: Added ip_version column to hosts for IP version preference (AutoMigration)
  * - Version 8: Added quick_commands table for reusable terminal commands (manual migration)
  * - Version 9: Added credentials table for reusable authentication credentials (manual migration)
+ * - Version 10: Added credential_id column to hosts for linking credentials to connections (manual migration)
  * - Future versions: Use Room AutoMigration when possible for simple schema changes
  *
  * Security Considerations:
@@ -81,7 +82,7 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
         QuickCommand::class,
         Credential::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -107,7 +108,7 @@ abstract class ConnectBotDatabase : RoomDatabase() {
          * Current database schema version.
          * This is also used for JSON export/import versioning.
          */
-        const val SCHEMA_VERSION = 9
+        const val SCHEMA_VERSION = 10
 
         /**
          * Migration from version 4 to 5: Add profiles table and profile_id to hosts.
@@ -284,6 +285,16 @@ abstract class ConnectBotDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        /**
+         * Migration from version 9 to 10: Add credential_id column to hosts.
+         * This links hosts to saved credentials from the Credentials vault.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE hosts ADD COLUMN credential_id INTEGER DEFAULT NULL")
             }
         }
     }

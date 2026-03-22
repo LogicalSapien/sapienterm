@@ -43,6 +43,7 @@ import com.trilead.ssh2.signature.ECDSASHA2Verify
 import com.trilead.ssh2.signature.Ed25519Verify
 import com.trilead.ssh2.signature.RSASHA1Verify
 import com.logicalsapien.sapienssh.R
+import com.logicalsapien.sapienssh.data.entity.CredentialType
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.data.entity.KeyStorageType
 import com.logicalsapien.sapienssh.data.entity.PortForward
@@ -56,6 +57,7 @@ import com.logicalsapien.sapienssh.service.requestStringPrompt
 import com.logicalsapien.sapienssh.util.HostConstants
 import com.logicalsapien.sapienssh.util.PubkeyUtils
 import timber.log.Timber
+import kotlinx.coroutines.runBlocking
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -99,6 +101,7 @@ class SSH :
     private var pubkeysExhausted = false
     private var interactiveCanContinue = true
     private var savedPasswordTried = false
+    private var credentialTried = false
 
     private var connection: Connection? = null
     private val jumpConnections: MutableList<Connection> = mutableListOf()
@@ -344,6 +347,16 @@ class SSH :
 
         try {
             val currentHost = host ?: return
+
+            // Try linked credential from the Credentials vault first
+            if (!credentialTried && currentHost.credentialId != null) {
+                credentialTried = true
+                if (tryLinkedCredential(currentHost)) {
+                    finishConnection()
+                    return
+                }
+            }
+
             val pubkeyId = currentHost.pubkeyId
 
             if (!pubkeysExhausted &&
@@ -609,6 +622,74 @@ class SSH :
     }
 
     /**
+     * Try to authenticate using a linked credential from the Credentials vault.
+     *
+     * @param currentHost The host with a credentialId set
+     * @return true if authentication succeeded
+     */
+    private fun tryLinkedCredential(currentHost: Host): Boolean {
+        val credentialId = currentHost.credentialId ?: return false
+        val credentialRepo = manager?.credentialRepository ?: return false
+
+        try {
+            val credential = runBlocking { credentialRepo.getById(credentialId) }
+            if (credential == null) {
+                bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_not_found))
+                return false
+            }
+
+            when (credential.type) {
+                CredentialType.PASSWORD -> {
+                    if (connection?.isAuthMethodAvailable(currentHost.username, AUTH_PASSWORD) != true) {
+                        return false
+                    }
+                    bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_password))
+                    val password = runBlocking { credentialRepo.getDecryptedPassword(credentialId) }
+                    if (password == null) {
+                        bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_decrypt_fail))
+                        return false
+                    }
+                    if (connection?.authenticateWithPassword(currentHost.username, password) == true) {
+                        return true
+                    }
+                    bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_password_fail))
+                    return false
+                }
+
+                CredentialType.SSH_KEY -> {
+                    if (connection?.isAuthMethodAvailable(currentHost.username, AUTH_PUBLICKEY) != true) {
+                        return false
+                    }
+                    bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_key))
+                    val privateKeyBytes = runBlocking { credentialRepo.getDecryptedPrivateKey(credentialId) }
+                    if (privateKeyBytes == null) {
+                        bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_decrypt_fail))
+                        return false
+                    }
+                    val passphrase = runBlocking { credentialRepo.getDecryptedPassphrase(credentialId) }
+
+                    try {
+                        val pemString = String(privateKeyBytes, StandardCharsets.UTF_8)
+                        val pair = PEMDecoder.decode(pemString.toCharArray(), passphrase)
+                        if (connection?.authenticateWithPublicKey(currentHost.username, pair) == true) {
+                            return true
+                        }
+                        bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_key_fail))
+                        return false
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to decode credential SSH key")
+                        bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_key_fail))
+                        return false
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error trying linked credential authentication")
+            return false
+        }
+    }
+
+    /**
      * Internal method to request actual PTY terminal once we've finished
      * authentication. If called before authenticated, it will just fail.
      */
@@ -716,6 +797,60 @@ class SSH :
     }
 
     /**
+     * Try to authenticate a jump host using a linked credential from the Credentials vault.
+     *
+     * @param jc The jump host connection
+     * @param jumpHost The jump host with a credentialId set
+     * @return true if authentication succeeded
+     */
+    private fun tryLinkedCredentialForJumpHost(jc: Connection, jumpHost: Host): Boolean {
+        val credentialId = jumpHost.credentialId ?: return false
+        val credentialRepo = manager?.credentialRepository ?: return false
+
+        try {
+            val credential = runBlocking { credentialRepo.getById(credentialId) }
+            if (credential == null) {
+                bridge?.outputLine(manager?.res?.getString(R.string.terminal_auth_credential_not_found))
+                return false
+            }
+
+            when (credential.type) {
+                CredentialType.PASSWORD -> {
+                    if (!jc.isAuthMethodAvailable(jumpHost.username, AUTH_PASSWORD)) return false
+                    val password = runBlocking { credentialRepo.getDecryptedPassword(credentialId) }
+                        ?: return false
+                    try {
+                        if (jc.authenticateWithPassword(jumpHost.username, password)) {
+                            return true
+                        }
+                    } catch (_: Exception) {
+                        Timber.d("Jump host linked credential password auth failed")
+                    }
+                }
+
+                CredentialType.SSH_KEY -> {
+                    if (!jc.isAuthMethodAvailable(jumpHost.username, AUTH_PUBLICKEY)) return false
+                    val privateKeyBytes = runBlocking { credentialRepo.getDecryptedPrivateKey(credentialId) }
+                        ?: return false
+                    val passphrase = runBlocking { credentialRepo.getDecryptedPassphrase(credentialId) }
+                    try {
+                        val pemString = String(privateKeyBytes, StandardCharsets.UTF_8)
+                        val pair = PEMDecoder.decode(pemString.toCharArray(), passphrase)
+                        if (jc.authenticateWithPublicKey(jumpHost.username, pair)) {
+                            return true
+                        }
+                    } catch (_: Exception) {
+                        Timber.d("Jump host linked credential key auth failed")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error trying linked credential for jump host")
+        }
+        return false
+    }
+
+    /**
      * Authenticate to a jump host connection.
      *
      * @param jc The jump host connection
@@ -727,6 +862,13 @@ class SSH :
             // Try 'none' authentication first
             if (jc.authenticateWithNone(jumpHost.username)) {
                 return true
+            }
+
+            // Try linked credential from the Credentials vault
+            if (jumpHost.credentialId != null) {
+                if (tryLinkedCredentialForJumpHost(jc, jumpHost)) {
+                    return true
+                }
             }
 
             val pubkeyId = jumpHost.pubkeyId

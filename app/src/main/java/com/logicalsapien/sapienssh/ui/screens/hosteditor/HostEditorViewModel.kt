@@ -26,9 +26,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.logicalsapien.sapienssh.data.CredentialRepository
 import com.logicalsapien.sapienssh.data.HostRepository
 import com.logicalsapien.sapienssh.data.ProfileRepository
 import com.logicalsapien.sapienssh.data.PubkeyRepository
+import com.logicalsapien.sapienssh.data.entity.Credential
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.data.entity.Profile
 import com.logicalsapien.sapienssh.data.entity.Pubkey
@@ -57,6 +59,8 @@ data class HostEditorUiState(
     val jumpHostId: Long? = null,
     val availableJumpHosts: List<Host> = emptyList(),
     val ipVersion: String = "IPV4_AND_IPV6",
+    val credentialId: Long? = null,
+    val availableCredentials: List<Credential> = emptyList(),
     val password: String = "",
     val hasExistingPassword: Boolean = false,
     val isLoading: Boolean = false,
@@ -69,6 +73,7 @@ class HostEditorViewModel @Inject constructor(
     private val repository: HostRepository,
     private val pubkeyRepository: PubkeyRepository,
     private val profileRepository: ProfileRepository,
+    private val credentialRepository: CredentialRepository,
     private val prefs: android.content.SharedPreferences,
     private val securePasswordStorage: SecurePasswordStorage
 ) : ViewModel() {
@@ -81,6 +86,7 @@ class HostEditorViewModel @Inject constructor(
         loadPubkeys()
         loadJumpHosts()
         loadProfiles()
+        loadCredentials()
         if (hostId != -1L) {
             loadHost()
         } else {
@@ -131,6 +137,18 @@ class HostEditorViewModel @Inject constructor(
         }
     }
 
+    private fun loadCredentials() {
+        viewModelScope.launch {
+            try {
+                val credentials = credentialRepository.getAll()
+                _uiState.update { it.copy(availableCredentials = credentials) }
+            } catch (e: Exception) {
+                // Don't fail the whole screen if credentials can't be loaded
+                _uiState.update { it.copy(availableCredentials = emptyList()) }
+            }
+        }
+    }
+
     private fun loadHost() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -156,6 +174,7 @@ class HostEditorViewModel @Inject constructor(
                             postLogin = host.postLogin ?: "",
                             jumpHostId = host.jumpHostId,
                             ipVersion = host.ipVersion,
+                            credentialId = host.credentialId,
                             hasExistingPassword = hasPassword,
                             isLoading = false
                         )
@@ -259,6 +278,10 @@ class HostEditorViewModel @Inject constructor(
         _uiState.update { it.copy(ipVersion = value) }
     }
 
+    fun updateCredentialId(value: Long?) {
+        _uiState.update { it.copy(credentialId = value) }
+    }
+
     fun updatePassword(value: String) {
         _uiState.update { it.copy(password = value) }
     }
@@ -309,7 +332,8 @@ class HostEditorViewModel @Inject constructor(
                     scrollbackLines = existingHost?.scrollbackLines ?: 140,
                     useCtrlAltAsMetaKey = existingHost?.useCtrlAltAsMetaKey ?: false,
                     jumpHostId = jumpHostId,
-                    ipVersion = state.ipVersion
+                    ipVersion = state.ipVersion,
+                    credentialId = state.credentialId
                 )
 
                 val savedHost = repository.saveHost(host)

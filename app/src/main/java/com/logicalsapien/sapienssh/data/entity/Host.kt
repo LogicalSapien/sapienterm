@@ -104,7 +104,15 @@ data class Host(
      * Values: "IPV4_AND_IPV6" (default), "IPV4_ONLY", "IPV6_ONLY"
      */
     @ColumnInfo(name = "ip_version", defaultValue = "IPV4_AND_IPV6")
-    val ipVersion: String = "IPV4_AND_IPV6"
+    val ipVersion: String = "IPV4_AND_IPV6",
+
+    /**
+     * Optional credential ID linking to a saved credential from the Credentials vault.
+     * When set, the referenced credential will be used for authentication instead of
+     * the per-host saved password. A value of null means no linked credential (manual auth).
+     */
+    @ColumnInfo(name = "credential_id")
+    val credentialId: Long? = null
 ) {
     /**
      * Check if this host is temporary (not saved to database).
