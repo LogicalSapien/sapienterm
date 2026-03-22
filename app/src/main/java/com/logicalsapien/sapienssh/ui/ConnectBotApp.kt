@@ -19,15 +19,21 @@
 
 package com.logicalsapien.sapienssh.ui
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.service.TerminalManager
+import com.logicalsapien.sapienssh.ui.navigation.BottomNavBar
 import com.logicalsapien.sapienssh.ui.navigation.ConnectBotNavHost
 import com.logicalsapien.sapienssh.ui.navigation.NavDestinations
+import com.logicalsapien.sapienssh.ui.navigation.Screen
 import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
 import com.logicalsapien.sapienssh.util.IconStyle
 
@@ -81,14 +87,30 @@ fun ConnectBotApp(
                     )
                 } else {
                     CompositionLocalProvider(LocalTerminalManager provides appUiState.terminalManager) {
-                        ConnectBotNavHost(
-                            navController = navController,
-                            startDestination = NavDestinations.HOST_LIST,
-                            makingShortcut = makingShortcut,
-                            onSelectShortcut = onSelectShortcut,
-                            onNavigateToConsole = onNavigateToConsole,
-                            modifier = modifier
-                        )
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val currentRoute = navBackStackEntry?.destination?.route
+                        val bottomNavRoutes = Screen.bottomNavItems.map { it.route }
+                        val showBottomBar = currentRoute in bottomNavRoutes
+
+                        Scaffold(
+                            bottomBar = {
+                                if (showBottomBar) {
+                                    BottomNavBar(
+                                        navController = navController,
+                                        currentRoute = currentRoute
+                                    )
+                                }
+                            }
+                        ) { innerPadding ->
+                            ConnectBotNavHost(
+                                navController = navController,
+                                startDestination = NavDestinations.HOST_LIST,
+                                makingShortcut = makingShortcut,
+                                onSelectShortcut = onSelectShortcut,
+                                onNavigateToConsole = onNavigateToConsole,
+                                modifier = modifier.padding(innerPadding)
+                            )
+                        }
                     }
                 }
             }

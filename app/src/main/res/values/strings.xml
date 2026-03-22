@@ -1366,4 +1366,10 @@
 	<string name="auth_prompt_title">Unlock SapienSSH</string>
 	<!-- Subtitle shown in the biometric/device credential authentication prompt -->
 	<string name="auth_prompt_subtitle">Verify your identity to continue</string>
+
+	<!-- Bottom navigation bar labels -->
+	<string name="nav_connections">Connections</string>
+	<string name="nav_quick_commands">Quick Commands</string>
+	<string name="nav_credentials">Credentials</string>
+	<string name="nav_settings">Settings</string>
 </resources>
