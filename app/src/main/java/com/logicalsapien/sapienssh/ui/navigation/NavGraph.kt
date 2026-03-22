@@ -48,6 +48,7 @@ import com.logicalsapien.sapienssh.ui.screens.profiles.ProfileEditorScreen
 import com.logicalsapien.sapienssh.ui.screens.profiles.ProfileListScreen
 import com.logicalsapien.sapienssh.ui.screens.pubkeyeditor.PubkeyEditorScreen
 import com.logicalsapien.sapienssh.ui.screens.pubkeylist.PubkeyListScreen
+import com.logicalsapien.sapienssh.ui.screens.quickcommands.QuickCommandsScreen
 import com.logicalsapien.sapienssh.ui.screens.settings.SettingsScreen
 import com.logicalsapien.sapienssh.util.IconStyle
 import timber.log.Timber
@@ -169,12 +170,7 @@ fun ConnectBotNavHost(
         }
 
         composable(NavDestinations.QUICK_COMMANDS) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Quick Commands \u2014 Coming Soon")
-            }
+            QuickCommandsScreen()
         }
 
         composable(NavDestinations.CREDENTIALS) {
