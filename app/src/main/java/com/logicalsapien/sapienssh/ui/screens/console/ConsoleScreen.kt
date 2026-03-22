@@ -512,34 +512,52 @@ fun ConsoleScreen(
                             }
                         }
 
-                        // Terminal keyboard overlay (doesn't resize terminal)
+                        // Terminal keyboard overlay + Quick Commands toolbar
                         // Must be BEFORE prompts so prompts appear on top
                         // Fade in/out animation matches ConsoleActivity (100ms duration)
-                        AnimatedVisibility(
-                            visible = showExtraKeyboard,
-                            enter = fadeIn(animationSpec = tween(durationMillis = 100)),
-                            exit = fadeOut(animationSpec = tween(durationMillis = 100)),
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
+                        Column(
+                            modifier = Modifier.align(Alignment.BottomCenter)
                         ) {
-                            TerminalKeyboard(
-                                bridge = bridge,
-                                onInteraction = { handleTerminalInteraction() },
-                                onHideIme = {
-                                    showSoftwareKeyboard = false
-                                },
-                                onShowIme = {
-                                    showSoftwareKeyboard = true
-                                },
-                                onOpenTextInput = {
-                                    showTextInputDialog = true
-                                },
-                                onScrollInProgressChange = { inProgress ->
-                                    keyboardScrollInProgress = inProgress
-                                },
-                                imeVisible = imeVisible,
-                                playAnimation = !hasPlayedKeyboardAnimation
-                            )
+                            // Quick Commands toolbar (above the keyboard)
+                            val quickCommands by viewModel.quickCommands.collectAsState()
+                            val isQuickCommandToolbarVisible by viewModel.isQuickCommandToolbarVisible.collectAsState()
+
+                            if (quickCommands.isNotEmpty() && showExtraKeyboard) {
+                                QuickCommandToolbar(
+                                    quickCommands = quickCommands,
+                                    isVisible = isQuickCommandToolbarVisible,
+                                    onToggleVisibility = { viewModel.toggleQuickCommandToolbar() },
+                                    onCommandClick = { command ->
+                                        viewModel.sendQuickCommand(command)
+                                        handleTerminalInteraction()
+                                    }
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = showExtraKeyboard,
+                                enter = fadeIn(animationSpec = tween(durationMillis = 100)),
+                                exit = fadeOut(animationSpec = tween(durationMillis = 100))
+                            ) {
+                                TerminalKeyboard(
+                                    bridge = bridge,
+                                    onInteraction = { handleTerminalInteraction() },
+                                    onHideIme = {
+                                        showSoftwareKeyboard = false
+                                    },
+                                    onShowIme = {
+                                        showSoftwareKeyboard = true
+                                    },
+                                    onOpenTextInput = {
+                                        showTextInputDialog = true
+                                    },
+                                    onScrollInProgressChange = { inProgress ->
+                                        keyboardScrollInProgress = inProgress
+                                    },
+                                    imeVisible = imeVisible,
+                                    playAnimation = !hasPlayedKeyboardAnimation
+                                )
+                            }
                         }
 
                         // Show inline prompts from the current bridge (non-modal at bottom)

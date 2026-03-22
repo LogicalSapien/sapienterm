@@ -24,12 +24,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.logicalsapien.sapienssh.data.QuickCommandRepository
+import com.logicalsapien.sapienssh.data.entity.QuickCommand
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
 import com.logicalsapien.sapienssh.service.TerminalBridge
 import com.logicalsapien.sapienssh.service.TerminalManager
@@ -51,7 +55,8 @@ data class ConsoleUiState(
 @HiltViewModel
 class ConsoleViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val dispatchers: CoroutineDispatchers
+    private val dispatchers: CoroutineDispatchers,
+    private val quickCommandRepository: QuickCommandRepository
 ) : ViewModel() {
     private val hostId: Long = savedStateHandle.get<Long>("hostId") ?: -1L
     private var terminalManager: TerminalManager? = null
@@ -61,6 +66,14 @@ class ConsoleViewModel @Inject constructor(
 
     private val _networkStatusMessages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val networkStatusMessages: SharedFlow<String> = _networkStatusMessages.asSharedFlow()
+
+    /** All quick commands, observed from the database. */
+    val quickCommands: StateFlow<List<QuickCommand>> = quickCommandRepository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    private val _isQuickCommandToolbarVisible = MutableStateFlow(true)
+    /** Whether the quick command chips are visible (toggle state). */
+    val isQuickCommandToolbarVisible: StateFlow<Boolean> = _isQuickCommandToolbarVisible.asStateFlow()
 
     fun setTerminalManager(manager: TerminalManager) {
         if (terminalManager != manager) {
@@ -256,5 +269,21 @@ class ConsoleViewModel @Inject constructor(
      */
     fun reconnect(bridge: TerminalBridge) {
         terminalManager?.requestReconnect(bridge)
+    }
+
+    /**
+     * Toggle visibility of the quick command toolbar chips.
+     */
+    fun toggleQuickCommandToolbar() {
+        _isQuickCommandToolbarVisible.update { !it }
+    }
+
+    /**
+     * Send a quick command string to the active terminal bridge.
+     * Appends a newline so the command is executed immediately.
+     */
+    fun sendQuickCommand(command: String) {
+        val currentBridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
+        currentBridge?.injectString(command + "\n")
     }
 }
