@@ -48,6 +48,8 @@ import com.logicalsapien.sapienssh.data.export.ImportManager
 import com.logicalsapien.sapienssh.data.export.ImportMode
 import com.logicalsapien.sapienssh.data.export.ImportResult
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
+import com.logicalsapien.sapienssh.util.ExtendedKey
+import com.logicalsapien.sapienssh.util.ExtendedKeyboardConfig
 import com.logicalsapien.sapienssh.util.LocalFontProvider
 import com.logicalsapien.sapienssh.util.PreferenceConstants
 import com.logicalsapien.sapienssh.util.TerminalFontProvider
@@ -91,6 +93,8 @@ data class SettingsUiState(
     val language: String = "",
     val defaultProfileId: Long = 0L,
     val availableProfiles: List<Profile> = emptyList(),
+    // Extended keyboard strip
+    val extendedKeyboardKeys: Set<String> = emptySet(),
     // Export/Import state
     val exportInProgress: Boolean = false,
     val importInProgress: Boolean = false,
@@ -173,6 +177,9 @@ class SettingsViewModel @Inject constructor(
             .canAuthenticate(Authenticators.BIOMETRIC_STRONG or Authenticators.DEVICE_CREDENTIAL) ==
             BiometricManager.BIOMETRIC_SUCCESS
 
+        val extendedConfig = ExtendedKeyboardConfig.load(prefs)
+        val extendedKeyIds = extendedConfig.enabledKeys.map { it.id }.toSet()
+
         return SettingsUiState(
             authOnLaunch = prefs.getBoolean(PreferenceConstants.AUTH_ON_LAUNCH, false),
             canAuthenticate = canAuthenticate,
@@ -203,7 +210,8 @@ class SettingsViewModel @Inject constructor(
             customTerminalTypes = customTerminalTypes,
             localFonts = localFonts,
             language = currentLanguage,
-            defaultProfileId = prefs.getLong("defaultProfileId", 0L)
+            defaultProfileId = prefs.getLong("defaultProfileId", 0L),
+            extendedKeyboardKeys = extendedKeyIds
         )
     }
 
@@ -318,6 +326,15 @@ class SettingsViewModel @Inject constructor(
 
     fun updateBumpyArrows(value: Boolean) {
         updateBooleanPref("bumpyarrows", value) { copy(bumpyarrows = value) }
+    }
+
+    fun updateExtendedKeyboardKeys(enabledKeyIds: Set<String>) {
+        viewModelScope.launch {
+            val enabledKeys = enabledKeyIds.mapNotNull { ExtendedKey.fromId(it) }.toSet()
+            val config = ExtendedKeyboardConfig(enabledKeys = enabledKeys)
+            ExtendedKeyboardConfig.save(prefs, config)
+            _uiState.update { it.copy(extendedKeyboardKeys = enabledKeyIds) }
+        }
     }
 
     fun updateScrollback(value: String) {

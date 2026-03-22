@@ -1447,7 +1447,11 @@
 
 	<!-- Bottom navigation bar labels -->
 	<string name="nav_connections">Connections</string>
-	<string name="nav_quick_commands">Quick Commands</string>
+	<string name="nav_quick_commands">Commands</string>
 	<string name="nav_credentials">Credentials</string>
 	<string name="nav_settings">Settings</string>
+
+	<!-- Extended keyboard strip settings -->
+	<string name="pref_extended_keyboard_title">Extended keyboard keys</string>
+	<string name="pref_extended_keyboard_summary">Choose which special keys appear in the terminal keyboard strip</string>
 </resources>

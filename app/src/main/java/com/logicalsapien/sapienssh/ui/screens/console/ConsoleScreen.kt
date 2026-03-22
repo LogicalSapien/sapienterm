@@ -124,6 +124,7 @@ import com.logicalsapien.sapienssh.ui.components.TERMINAL_KEYBOARD_HEIGHT_DP
 import com.logicalsapien.sapienssh.ui.components.TerminalKeyboard
 import com.logicalsapien.sapienssh.ui.components.UrlScanDialog
 import com.logicalsapien.sapienssh.ui.theme.terminal
+import com.logicalsapien.sapienssh.util.ExtendedKeyboardConfig
 import com.logicalsapien.sapienssh.util.PreferenceConstants
 import com.logicalsapien.sapienssh.util.rememberTerminalTypefaceResultFromStoredValue
 import timber.log.Timber
@@ -164,6 +165,7 @@ fun ConsoleScreen(
 
     // Read preferences
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
+    val extendedKeyboardConfig = remember { ExtendedKeyboardConfig.load(prefs) }
     val keyboardAlwaysVisible = remember { prefs.getBoolean("alwaysvisible", false) }
     var fullscreen by remember { mutableStateOf(prefs.getBoolean("fullscreen", false)) }
     var titleBarHide by remember { mutableStateOf(prefs.getBoolean("titlebarhide", false)) }
@@ -531,6 +533,15 @@ fun ConsoleScreen(
                                         viewModel.sendQuickCommand(command)
                                         handleTerminalInteraction()
                                     }
+                                )
+                            }
+
+                            // Extended keyboard strip (below Quick Commands, above TerminalKeyboard)
+                            if (showExtraKeyboard) {
+                                ExtendedKeyboardStrip(
+                                    bridge = bridge,
+                                    config = extendedKeyboardConfig,
+                                    onInteraction = { handleTerminalInteraction() }
                                 )
                             }
 

@@ -26,7 +26,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FontDownload
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -71,6 +74,7 @@ import com.logicalsapien.sapienssh.ui.PreviewScreen
 import com.logicalsapien.sapienssh.ui.common.getLocalizedFontDisplayName
 import com.logicalsapien.sapienssh.ui.components.FontDownloadProgressDialog
 import com.logicalsapien.sapienssh.ui.theme.SapienSSHTheme
+import com.logicalsapien.sapienssh.util.ExtendedKey
 import com.logicalsapien.sapienssh.util.LocalFontProvider
 import com.logicalsapien.sapienssh.util.NotificationPermissionHelper
 import com.logicalsapien.sapienssh.util.TerminalFont
@@ -309,6 +313,7 @@ fun SettingsScreen(
         onBellVolumeChange = viewModel::updateBellVolume,
         onBellVibrateChange = viewModel::updateBellVibrate,
         onBellNotificationChange = viewModel::updateBellNotification,
+        onExtendedKeyboardKeysChange = viewModel::updateExtendedKeyboardKeys,
         onExportClick = { showExportDialog = true },
         onImportClick = {
             importFilePicker.launch(arrayOf(
@@ -360,6 +365,7 @@ fun SettingsScreenContent(
     onBellVolumeChange: (Float) -> Unit,
     onBellVibrateChange: (Boolean) -> Unit,
     onBellNotificationChange: (Boolean) -> Unit,
+    onExtendedKeyboardKeysChange: (Set<String>) -> Unit,
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -644,6 +650,13 @@ fun SettingsScreenContent(
                     summary = stringResource(R.string.pref_ctrlfkeys_summary),
                     checked = uiState.ctrlfkeys,
                     onCheckedChange = onCtrlFkeysChange
+                )
+            }
+
+            item {
+                ExtendedKeyboardKeysPreference(
+                    enabledKeyIds = uiState.extendedKeyboardKeys,
+                    onKeysChange = onExtendedKeyboardKeysChange
                 )
             }
 
@@ -1591,8 +1604,90 @@ private fun SettingsScreenPreview() {
             onBellVolumeChange = {},
             onBellVibrateChange = {},
             onBellNotificationChange = {},
+            onExtendedKeyboardKeysChange = {},
             onExportClick = {},
             onImportClick = {}
+        )
+    }
+}
+
+@Composable
+private fun ExtendedKeyboardKeysPreference(
+    enabledKeyIds: Set<String>,
+    onKeysChange: (Set<String>) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    // Build summary from enabled keys
+    val enabledCount = enabledKeyIds.size
+    val totalCount = ExtendedKey.entries.size
+    val summary = if (enabledCount == totalCount) {
+        stringResource(R.string.pref_extended_keyboard_summary)
+    } else {
+        "$enabledCount / $totalCount keys enabled"
+    }
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.pref_extended_keyboard_title)) },
+        supportingContent = { Text(summary) },
+        modifier = modifier.clickable { showDialog = true }
+    )
+    HorizontalDivider()
+
+    if (showDialog) {
+        // Local mutable copy of enabled keys for the dialog
+        var selectedKeys by remember { mutableStateOf(enabledKeyIds.toMutableSet()) }
+
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(stringResource(R.string.pref_extended_keyboard_title)) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    ExtendedKey.entries.forEach { key ->
+                        val isChecked = key.id in selectedKeys
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedKeys = selectedKeys.toMutableSet().apply {
+                                        if (isChecked) remove(key.id) else add(key.id)
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start
+                        ) {
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { checked ->
+                                    selectedKeys = selectedKeys.toMutableSet().apply {
+                                        if (checked) add(key.id) else remove(key.id)
+                                    }
+                                }
+                            )
+                            Text(
+                                text = key.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onKeysChange(selectedKeys.toSet())
+                    showDialog = false
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
         )
     }
 }
