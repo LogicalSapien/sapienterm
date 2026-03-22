@@ -17,11 +17,7 @@
 
 package com.logicalsapien.sapienssh.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
@@ -49,6 +45,7 @@ import com.logicalsapien.sapienssh.ui.screens.profiles.ProfileListScreen
 import com.logicalsapien.sapienssh.ui.screens.pubkeyeditor.PubkeyEditorScreen
 import com.logicalsapien.sapienssh.ui.screens.pubkeylist.PubkeyListScreen
 import com.logicalsapien.sapienssh.ui.screens.quickcommands.QuickCommandsScreen
+import com.logicalsapien.sapienssh.ui.screens.credentials.CredentialsScreen
 import com.logicalsapien.sapienssh.ui.screens.settings.SettingsScreen
 import com.logicalsapien.sapienssh.util.IconStyle
 import timber.log.Timber
@@ -174,12 +171,7 @@ fun ConnectBotNavHost(
         }
 
         composable(NavDestinations.CREDENTIALS) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Credentials \u2014 Coming Soon")
-            }
+            CredentialsScreen()
         }
 
         composable(NavDestinations.COLORS) {
