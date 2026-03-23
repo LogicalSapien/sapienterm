@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.logicalsapien.sapienssh.data.CommandHistoryRepository
 import com.logicalsapien.sapienssh.data.QuickCommandRepository
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
@@ -59,6 +60,7 @@ class ConsoleViewModelTest {
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var bridgesFlow: MutableStateFlow<List<TerminalBridge>>
     private lateinit var quickCommandRepository: QuickCommandRepository
+    private lateinit var commandHistoryRepository: CommandHistoryRepository
 
     @Before
     fun setUp() {
@@ -67,10 +69,12 @@ class ConsoleViewModelTest {
         terminalManager = mock()
         savedStateHandle = mock()
         quickCommandRepository = mock()
+        commandHistoryRepository = mock()
         bridgesFlow = MutableStateFlow(emptyList())
         whenever(terminalManager.bridgesFlow).thenReturn(bridgesFlow)
         whenever(terminalManager.hostStatusChangedFlow).thenReturn(MutableSharedFlow())
         whenever(quickCommandRepository.observeAll()).thenReturn(MutableStateFlow(emptyList()))
+        whenever(commandHistoryRepository.observeForHost(org.mockito.kotlin.any())).thenReturn(MutableStateFlow(emptyList()))
     }
 
     @After
@@ -81,7 +85,7 @@ class ConsoleViewModelTest {
     @Test
     fun initialState_IsLoading() {
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(1L)
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         val state = viewModel.uiState.value
@@ -96,7 +100,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = emptyList()
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -112,7 +116,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -131,7 +135,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge1, mockBridge2, mockBridge3)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -150,7 +154,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge1, mockBridge2)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -168,7 +172,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -188,7 +192,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -208,7 +212,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -227,7 +231,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -251,7 +255,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge1, mockBridge2, mockBridge3)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -276,7 +280,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge1, mockBridge2, mockBridge3)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -300,7 +304,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -323,7 +327,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -347,7 +351,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -373,7 +377,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -398,7 +402,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()
@@ -428,7 +432,7 @@ class ConsoleViewModelTest {
         bridgesFlow.value = listOf(mockBridge1, mockBridge2)
         whenever(savedStateHandle.get<Long>("hostId")).thenReturn(-1L)
 
-        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository)
+        val viewModel = ConsoleViewModel(savedStateHandle, dispatchers, quickCommandRepository, commandHistoryRepository)
         viewModel.setTerminalManager(terminalManager)
 
         advanceUntilIdle()

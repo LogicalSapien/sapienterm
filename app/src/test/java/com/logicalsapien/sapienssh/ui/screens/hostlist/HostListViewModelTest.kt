@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.logicalsapien.sapienssh.data.ConnectionGroupRepository
 import com.logicalsapien.sapienssh.data.HostRepository
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
@@ -57,6 +58,7 @@ class HostListViewModelTest {
     )
     private lateinit var context: Context
     private lateinit var repository: HostRepository
+    private lateinit var groupRepository: ConnectionGroupRepository
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var editor: SharedPreferences.Editor
     private lateinit var hostsFlow: MutableStateFlow<List<Host>>
@@ -68,6 +70,7 @@ class HostListViewModelTest {
 
         context = mock()
         repository = mock()
+        groupRepository = mock()
         sharedPreferences = mock()
         editor = mock()
         hostsFlow = MutableStateFlow(emptyList())
@@ -75,6 +78,7 @@ class HostListViewModelTest {
 
         whenever(repository.observeHosts()).thenReturn(hostsFlow)
         whenever(repository.observeHostsSortedByColor()).thenReturn(hostsSortedByColorFlow)
+        whenever(groupRepository.observeAll()).thenReturn(MutableStateFlow(emptyList()))
         whenever(sharedPreferences.edit()).thenReturn(editor)
         whenever(editor.putBoolean(any(), any())).thenReturn(editor)
     }
@@ -87,7 +91,7 @@ class HostListViewModelTest {
     private fun createViewModel(sortedByColor: Boolean = false): HostListViewModel {
         whenever(sharedPreferences.getBoolean(PreferenceConstants.SORT_BY_COLOR, false))
             .thenReturn(sortedByColor)
-        return HostListViewModel(context, repository, dispatchers, sharedPreferences)
+        return HostListViewModel(context, repository, groupRepository, dispatchers, sharedPreferences)
     }
 
     /**

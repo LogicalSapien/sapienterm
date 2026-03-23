@@ -28,11 +28,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.logicalsapien.sapienssh.data.CommandHistoryRepository
 import com.logicalsapien.sapienssh.data.QuickCommandRepository
+import com.logicalsapien.sapienssh.data.entity.CommandHistory
 import com.logicalsapien.sapienssh.data.entity.QuickCommand
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
 import com.logicalsapien.sapienssh.service.TerminalBridge
@@ -56,7 +61,8 @@ data class ConsoleUiState(
 class ConsoleViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val dispatchers: CoroutineDispatchers,
-    private val quickCommandRepository: QuickCommandRepository
+    private val quickCommandRepository: QuickCommandRepository,
+    private val commandHistoryRepository: CommandHistoryRepository
 ) : ViewModel() {
     private var hostId: Long = savedStateHandle.get<Long>("hostId") ?: -1L
     private var terminalManager: TerminalManager? = null
@@ -76,6 +82,18 @@ class ConsoleViewModel @Inject constructor(
     private val _isQuickCommandToolbarVisible = MutableStateFlow(true)
     /** Whether the quick command chips are visible (toggle state). */
     val isQuickCommandToolbarVisible: StateFlow<Boolean> = _isQuickCommandToolbarVisible.asStateFlow()
+
+    /** Tracks the current bridge's host ID for reactive history queries. */
+    private val _currentHostId = MutableStateFlow(hostId)
+
+    /** Command history for the current bridge's host, updated reactively. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val commandHistory: StateFlow<List<CommandHistory>> = _currentHostId
+        .flatMapLatest { id ->
+            if (id > 0L) commandHistoryRepository.observeForHost(id)
+            else flowOf(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun setTerminalManager(manager: TerminalManager) {
         if (terminalManager != manager) {
@@ -253,6 +271,9 @@ class ConsoleViewModel @Inject constructor(
                 error = null
             )
         }
+        // Keep _currentHostId in sync with the selected bridge
+        val selectedBridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
+        selectedBridge?.host?.id?.let { _currentHostId.value = it }
     }
 
     /**
@@ -263,6 +284,7 @@ class ConsoleViewModel @Inject constructor(
     fun navigateToHost(newHostId: Long) {
         if (newHostId == -1L) return
         hostId = newHostId
+        _currentHostId.value = newHostId
         initialBridgeSelected = false
 
         // Try to select the bridge for this host immediately
@@ -282,6 +304,9 @@ class ConsoleViewModel @Inject constructor(
     fun selectBridge(index: Int) {
         if (index in _uiState.value.bridges.indices) {
             _uiState.update { it.copy(currentBridgeIndex = index) }
+            // Update the host ID so command history reacts to bridge changes
+            val bridge = _uiState.value.bridges.getOrNull(index)
+            bridge?.host?.id?.let { _currentHostId.value = it }
         }
     }
 
@@ -329,9 +354,33 @@ class ConsoleViewModel @Inject constructor(
     /**
      * Send a quick command string to the active terminal bridge.
      * Appends a newline so the command is executed immediately.
+     * Also records the command in history.
      */
     fun sendQuickCommand(command: String) {
         val currentBridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
         currentBridge?.injectString(command + "\n")
+        recordCommand(command)
+    }
+
+    /**
+     * Record a command in the history for the current host.
+     */
+    fun recordCommand(command: String) {
+        val currentHostId = _currentHostId.value
+        if (currentHostId <= 0L || command.isBlank()) return
+        viewModelScope.launch {
+            commandHistoryRepository.recordCommand(currentHostId, command.trim())
+        }
+    }
+
+    /**
+     * Clear all command history for the current host.
+     */
+    fun clearHistory() {
+        val currentHostId = _currentHostId.value
+        if (currentHostId <= 0L) return
+        viewModelScope.launch {
+            commandHistoryRepository.deleteForHost(currentHostId)
+        }
     }
 }

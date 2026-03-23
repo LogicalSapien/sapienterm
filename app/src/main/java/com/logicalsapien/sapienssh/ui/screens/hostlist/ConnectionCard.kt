@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -75,10 +76,12 @@ fun ConnectionCard(
     connectionState: ConnectionState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    healthStatus: HealthStatus? = null,
     onClone: (() -> Unit)? = null,
     onRename: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    onMoveToGroup: (() -> Unit)? = null
 ) {
     val statusColor = when (connectionState) {
         ConnectionState.CONNECTED -> StatusGreen
@@ -86,7 +89,7 @@ fun ConnectionCard(
         ConnectionState.UNKNOWN -> StatusGrey
     }
 
-    val hasContextMenu = onClone != null || onRename != null || onEdit != null || onDelete != null
+    val hasContextMenu = onClone != null || onRename != null || onEdit != null || onDelete != null || onMoveToGroup != null
     var showContextMenu by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
@@ -115,11 +118,39 @@ fun ConnectionCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Status dot
-                Canvas(
-                    modifier = Modifier.size(12.dp)
+                // Status dot + latency
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    drawCircle(color = statusColor)
+                    Canvas(
+                        modifier = Modifier.size(12.dp)
+                    ) {
+                        drawCircle(color = statusColor)
+                    }
+                    if (host.protocol != "local" && host.hostname.isNotBlank()) {
+                        val latencyText: String
+                        val latencyColor: androidx.compose.ui.graphics.Color
+                        when {
+                            healthStatus == null -> {
+                                latencyText = "..."
+                                latencyColor = StatusGrey
+                            }
+                            healthStatus.isReachable -> {
+                                latencyText = "${healthStatus.latencyMs}ms"
+                                latencyColor = StatusGreen
+                            }
+                            else -> {
+                                latencyText = "offline"
+                                latencyColor = StatusRed
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = latencyText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = latencyColor
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -215,6 +246,18 @@ fun ConnectionCard(
                         },
                         leadingIcon = {
                             Icon(Icons.Default.Edit, contentDescription = null)
+                        }
+                    )
+                }
+                onMoveToGroup?.let { moveAction ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.group_move_to)) },
+                        onClick = {
+                            showContextMenu = false
+                            moveAction()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
                         }
                     )
                 }

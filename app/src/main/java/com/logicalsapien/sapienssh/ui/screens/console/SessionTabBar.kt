@@ -30,7 +30,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -144,14 +146,19 @@ private fun buildTabDisplayNames(bridges: List<TerminalBridge>): List<String> {
  * Each tab shows the connection nickname (or custom name) and a close button.
  * The active tab is highlighted with the primary color.
  * Long press on a tab opens a rename dialog.
+ *
+ * Includes a back arrow icon at the start and a menu (three-dots) icon at
+ * the end, so this bar replaces the TopAppBar entirely.
  */
 @Composable
 fun SessionTabBar(
     bridges: List<TerminalBridge>,
     currentIndex: Int,
     onSelectTab: (Int) -> Unit,
-    onCloseTab: (TerminalBridge) -> Unit,
+    onCloseTabRequested: (TerminalBridge) -> Unit,
     onRenameTab: (Int, String) -> Unit = { _, _ -> },
+    onNavigateBack: () -> Unit = {},
+    onMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var renameDialogIndex by remember { mutableStateOf<Int?>(null) }
@@ -164,20 +171,54 @@ fun SessionTabBar(
             .fillMaxWidth()
             .height(40.dp)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
+            .padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        bridges.forEachIndexed { index, bridge ->
-            val isSelected = index == currentIndex
-            val displayName = displayNames.getOrElse(index) { getTabDisplayName(bridge) }
-            SessionTab(
-                nickname = displayName,
-                isSelected = isSelected,
-                onClick = { onSelectTab(index) },
-                onLongClick = { renameDialogIndex = index },
-                onClose = { onCloseTab(bridge) }
+        // Back arrow button
+        IconButton(
+            onClick = onNavigateBack,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.button_back),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Scrollable tabs
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            bridges.forEachIndexed { index, bridge ->
+                val isSelected = index == currentIndex
+                val displayName = displayNames.getOrElse(index) { getTabDisplayName(bridge) }
+                SessionTab(
+                    nickname = displayName,
+                    isSelected = isSelected,
+                    onClick = { onSelectTab(index) },
+                    onLongClick = { renameDialogIndex = index },
+                    onClose = { onCloseTabRequested(bridge) }
+                )
+            }
+        }
+
+        // Menu (three-dots) button
+        IconButton(
+            onClick = onMenuClick,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.button_more_options),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

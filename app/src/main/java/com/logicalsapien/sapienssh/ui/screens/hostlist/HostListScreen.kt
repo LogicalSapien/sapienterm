@@ -21,24 +21,31 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Cable
@@ -47,6 +54,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -79,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import com.logicalsapien.sapienssh.R
+import com.logicalsapien.sapienssh.data.entity.ConnectionGroup
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.ui.LocalTerminalManager
 import com.logicalsapien.sapienssh.ui.PreviewScreen
@@ -112,6 +122,9 @@ fun HostListScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
+    val healthStatusMap by viewModel.healthStatus.collectAsState()
+    val groups by viewModel.groups.collectAsState()
+    val selectedGroupId by viewModel.selectedGroupId.collectAsState()
     val scope = rememberCoroutineScope()
 
     // File picker for export
@@ -222,6 +235,9 @@ fun HostListScreen(
 
     HostListScreenContent(
         uiState = uiState,
+        healthStatusMap = healthStatusMap,
+        groups = groups,
+        selectedGroupId = selectedGroupId,
         makingShortcut = makingShortcut,
         onNavigateToConsole = onNavigateToConsole,
         onSelectShortcut = { host -> shortcutHost = host },
@@ -240,6 +256,11 @@ fun HostListScreen(
         onDisconnectAll = viewModel::disconnectAll,
         onExportHosts = viewModel::exportHosts,
         onImportHosts = { importLauncher.launch(arrayOf("application/json")) },
+        onSelectGroup = viewModel::selectGroup,
+        onCreateGroup = viewModel::createGroup,
+        onRenameGroup = viewModel::renameGroup,
+        onDeleteGroup = viewModel::deleteGroup,
+        onMoveHostToGroup = viewModel::moveHostToGroup,
         modifier = modifier
     )
 }
@@ -248,6 +269,9 @@ fun HostListScreen(
 @Composable
 fun HostListScreenContent(
     uiState: HostListUiState,
+    healthStatusMap: Map<Long, HealthStatus> = emptyMap(),
+    groups: List<ConnectionGroup> = emptyList(),
+    selectedGroupId: Long? = null,
     makingShortcut: Boolean = false,
     onNavigateToConsole: (Host) -> Unit,
     onSelectShortcut: (Host) -> Unit = {},
@@ -266,15 +290,33 @@ fun HostListScreenContent(
     onDisconnectAll: () -> Unit,
     onExportHosts: () -> Unit = {},
     onImportHosts: () -> Unit = {},
+    onSelectGroup: (Long?) -> Unit = {},
+    onCreateGroup: (String) -> Unit = {},
+    onRenameGroup: (ConnectionGroup, String) -> Unit = { _, _ -> },
+    onDeleteGroup: (ConnectionGroup) -> Unit = {},
+    onMoveHostToGroup: (Long, Long?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDisconnectAllDialog by remember { mutableStateOf(false) }
     var hostToDelete by remember { mutableStateOf<Host?>(null) }
     var hostToRename by remember { mutableStateOf<Host?>(null) }
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var groupToRename by remember { mutableStateOf<ConnectionGroup?>(null) }
+    var groupToDelete by remember { mutableStateOf<ConnectionGroup?>(null) }
+    var hostToMoveToGroup by remember { mutableStateOf<Host?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Filter hosts by selected group
+    val filteredHosts = remember(uiState.hosts, selectedGroupId) {
+        if (selectedGroupId == null) {
+            uiState.hosts
+        } else {
+            uiState.hosts.filter { it.groupId == selectedGroupId }
+        }
+    }
 
     // Show snackbar when there's an error
     LaunchedEffect(uiState.error) {
@@ -384,86 +426,107 @@ fun HostListScreenContent(
         },
         modifier = modifier
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
+            // Group filter chips row
+            if (groups.isNotEmpty() && !makingShortcut) {
+                GroupFilterChips(
+                    groups = groups,
+                    selectedGroupId = selectedGroupId,
+                    onSelectGroup = onSelectGroup,
+                    onCreateGroup = { showCreateGroupDialog = true },
+                    onRenameGroup = { groupToRename = it },
+                    onDeleteGroup = { groupToDelete = it }
+                )
+            }
 
-                uiState.hosts.isEmpty() -> {
-                    // Enhanced empty state with icon
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Cable,
-                            contentDescription = null,
-                            modifier = Modifier.size(72.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ) {
+                when {
+                    uiState.isLoading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.empty_connections_cta),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        TextButton(onClick = { onNavigateToEditHost(null) }) {
-                            Text(stringResource(R.string.hostpref_add_host))
+                    }
+
+                    filteredHosts.isEmpty() -> {
+                        // Enhanced empty state with icon
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Cable,
+                                contentDescription = null,
+                                modifier = Modifier.size(72.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.empty_connections_cta),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            TextButton(onClick = { onNavigateToEditHost(null) }) {
+                                Text(stringResource(R.string.hostpref_add_host))
+                            }
                         }
                     }
-                }
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 16.dp,
-                            bottom = 104.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = uiState.hosts,
-                            key = { it.id }
-                        ) { host ->
-                            val connectionState = uiState.connectionStates[host.id] ?: ConnectionState.UNKNOWN
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 16.dp,
+                                bottom = 104.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = filteredHosts,
+                                key = { it.id }
+                            ) { host ->
+                                val connectionState = uiState.connectionStates[host.id] ?: ConnectionState.UNKNOWN
 
-                            if (makingShortcut) {
-                                // In shortcut mode, just show plain cards without swipe
-                                ConnectionCard(
-                                    host = host,
-                                    connectionState = connectionState,
-                                    onClick = { onSelectShortcut(host) }
-                                )
-                            } else {
-                                SwipeToDismissHostItem(
-                                    host = host,
-                                    connectionState = connectionState,
-                                    onClick = { onNavigateToConsole(host) },
-                                    onEdit = { onNavigateToEditHost(host) },
-                                    onDelete = { hostToDelete = host },
-                                    onClone = {
-                                        onDuplicateHost(host)
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.connection_cloned)
-                                            )
-                                        }
-                                    },
-                                    onRename = { hostToRename = host }
-                                )
+                                if (makingShortcut) {
+                                    // In shortcut mode, just show plain cards without swipe
+                                    ConnectionCard(
+                                        host = host,
+                                        connectionState = connectionState,
+                                        onClick = { onSelectShortcut(host) },
+                                        healthStatus = healthStatusMap[host.id]
+                                    )
+                                } else {
+                                    SwipeToDismissHostItem(
+                                        host = host,
+                                        connectionState = connectionState,
+                                        healthStatus = healthStatusMap[host.id],
+                                        onClick = { onNavigateToConsole(host) },
+                                        onEdit = { onNavigateToEditHost(host) },
+                                        onDelete = { hostToDelete = host },
+                                        onClone = {
+                                            onDuplicateHost(host)
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.connection_cloned)
+                                                )
+                                            }
+                                        },
+                                        onRename = { hostToRename = host },
+                                        onMoveToGroup = { hostToMoveToGroup = host }
+                                    )
+                                }
                             }
                         }
                     }
@@ -510,6 +573,68 @@ fun HostListScreenContent(
             }
         )
     }
+
+    // Create group dialog
+    if (showCreateGroupDialog) {
+        GroupNameDialog(
+            title = stringResource(R.string.group_create_title),
+            initialName = "",
+            onDismiss = { showCreateGroupDialog = false },
+            onConfirm = { name ->
+                showCreateGroupDialog = false
+                onCreateGroup(name)
+            }
+        )
+    }
+
+    // Rename group dialog
+    groupToRename?.let { group ->
+        GroupNameDialog(
+            title = stringResource(R.string.group_rename_title),
+            initialName = group.name,
+            onDismiss = { groupToRename = null },
+            onConfirm = { newName ->
+                groupToRename = null
+                onRenameGroup(group, newName)
+            }
+        )
+    }
+
+    // Delete group confirmation dialog
+    groupToDelete?.let { group ->
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            text = {
+                Text(stringResource(R.string.group_delete_confirm, group.name))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    groupToDelete = null
+                    onDeleteGroup(group)
+                }) {
+                    Text(stringResource(R.string.button_yes))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) {
+                    Text(stringResource(R.string.button_no))
+                }
+            }
+        )
+    }
+
+    // Move host to group dialog
+    hostToMoveToGroup?.let { host ->
+        MoveToGroupDialog(
+            groups = groups,
+            currentGroupId = host.groupId,
+            onDismiss = { hostToMoveToGroup = null },
+            onSelect = { groupId ->
+                hostToMoveToGroup = null
+                onMoveHostToGroup(host.id, groupId)
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -517,11 +642,13 @@ fun HostListScreenContent(
 private fun SwipeToDismissHostItem(
     host: Host,
     connectionState: ConnectionState,
+    healthStatus: HealthStatus? = null,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onClone: () -> Unit = {},
-    onRename: () -> Unit = {}
+    onRename: () -> Unit = {},
+    onMoveToGroup: () -> Unit = {}
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
@@ -616,10 +743,12 @@ private fun SwipeToDismissHostItem(
             host = host,
             connectionState = connectionState,
             onClick = onClick,
+            healthStatus = healthStatus,
             onClone = onClone,
             onRename = onRename,
             onEdit = onEdit,
-            onDelete = onDelete
+            onDelete = onDelete,
+            onMoveToGroup = onMoveToGroup
         )
     }
 }
@@ -681,6 +810,212 @@ private fun HostDeleteDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.button_no))
+            }
+        }
+    )
+}
+
+/**
+ * Horizontal scrollable row of filter chips for connection groups.
+ * Shows "All" chip, one chip per group, and a "+" chip to create a new group.
+ * Long-press on a group chip shows rename/delete options.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GroupFilterChips(
+    groups: List<ConnectionGroup>,
+    selectedGroupId: Long?,
+    onSelectGroup: (Long?) -> Unit,
+    onCreateGroup: () -> Unit,
+    onRenameGroup: (ConnectionGroup) -> Unit,
+    onDeleteGroup: (ConnectionGroup) -> Unit
+) {
+    var groupMenuTarget by remember { mutableStateOf<ConnectionGroup?>(null) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // "All" chip — always first
+        FilterChip(
+            selected = selectedGroupId == null,
+            onClick = { onSelectGroup(null) },
+            label = { Text(stringResource(R.string.group_all)) }
+        )
+
+        // One chip per group
+        groups.forEach { group ->
+            Box {
+                FilterChip(
+                    selected = selectedGroupId == group.id,
+                    onClick = { onSelectGroup(group.id) },
+                    label = { Text(group.name) },
+                    modifier = Modifier.combinedClickable(
+                        onClick = { onSelectGroup(group.id) },
+                        onLongClick = { groupMenuTarget = group }
+                    )
+                )
+
+                // Context menu for long-pressed group chip
+                DropdownMenu(
+                    expanded = groupMenuTarget == group,
+                    onDismissRequest = { groupMenuTarget = null }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.group_rename)) },
+                        onClick = {
+                            groupMenuTarget = null
+                            onRenameGroup(group)
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.group_delete)) },
+                        onClick = {
+                            groupMenuTarget = null
+                            onDeleteGroup(group)
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                        }
+                    )
+                }
+            }
+        }
+
+        // "+" chip to create a new group
+        FilterChip(
+            selected = false,
+            onClick = onCreateGroup,
+            label = { Text("+") },
+            colors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        )
+    }
+}
+
+/**
+ * Dialog for creating or renaming a connection group.
+ */
+@Composable
+private fun GroupNameDialog(
+    title: String,
+    initialName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.group_name_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank()
+            ) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Dialog for moving a host to a group.
+ * Shows a list of groups plus a "No group" option.
+ */
+@Composable
+private fun MoveToGroupDialog(
+    groups: List<ConnectionGroup>,
+    currentGroupId: Long?,
+    onDismiss: () -> Unit,
+    onSelect: (Long?) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.group_move_to)) },
+        text = {
+            Column {
+                // "No group" option
+                TextButton(
+                    onClick = { onSelect(null) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.FolderOpen,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.group_no_group),
+                            color = if (currentGroupId == null) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
+                }
+
+                // Group options
+                groups.forEach { group ->
+                    TextButton(
+                        onClick = { onSelect(group.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = group.name,
+                                color = if (currentGroupId == group.id) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
             }
         }
     )

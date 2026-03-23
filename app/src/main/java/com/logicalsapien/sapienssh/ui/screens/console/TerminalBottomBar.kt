@@ -17,6 +17,7 @@
 
 package com.logicalsapien.sapienssh.ui.screens.console
 
+import android.text.format.DateUtils
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -28,16 +29,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -47,8 +51,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.logicalsapien.sapienssh.data.entity.CommandHistory
 import com.logicalsapien.sapienssh.data.entity.QuickCommand
 import com.logicalsapien.sapienssh.service.ModifierLevel
 import com.logicalsapien.sapienssh.service.TerminalBridge
@@ -83,6 +91,7 @@ private val TealActive = Color(0xFF00897B)
 private enum class ActivePanel {
     NONE,
     COMMANDS,
+    HISTORY,
     MORE_KEYS
 }
 
@@ -98,9 +107,12 @@ private enum class ActivePanel {
  *
  * @param bridge The terminal bridge for sending key events
  * @param quickCommands List of saved quick commands
+ * @param commandHistory List of command history entries for the current host
  * @param showSoftwareKeyboard Whether the software keyboard is currently shown
  * @param onToggleKeyboard Callback to toggle the software keyboard
  * @param onSendQuickCommand Callback to send a quick command string
+ * @param onHistoryCommandClick Callback when a history command is tapped for re-send
+ * @param onClearHistory Callback to clear command history for current host
  * @param onInteraction Callback when any key/button is tapped (for auto-hide timer resets)
  * @param modifier Optional modifier
  */
@@ -109,9 +121,12 @@ private enum class ActivePanel {
 fun TerminalBottomBar(
     bridge: TerminalBridge,
     quickCommands: List<QuickCommand>,
+    commandHistory: List<CommandHistory>,
     showSoftwareKeyboard: Boolean,
     onToggleKeyboard: () -> Unit,
     onSendQuickCommand: (String) -> Unit,
+    onHistoryCommandClick: (String) -> Unit,
+    onClearHistory: () -> Unit,
     onInteraction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -122,7 +137,7 @@ fun TerminalBottomBar(
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Popup panels appear ABOVE the bar
-        // Commands panel
+        // Commands panel (with search/filter)
         AnimatedVisibility(
             visible = activePanel == ActivePanel.COMMANDS,
             enter = expandVertically(
@@ -136,11 +151,35 @@ fun TerminalBottomBar(
         ) {
             CommandsPanel(
                 quickCommands = quickCommands,
+                commandHistory = commandHistory,
                 onCommandClick = { command ->
                     onSendQuickCommand(command)
                     activePanel = ActivePanel.NONE
                     onInteraction()
                 }
+            )
+        }
+
+        // History panel
+        AnimatedVisibility(
+            visible = activePanel == ActivePanel.HISTORY,
+            enter = expandVertically(
+                animationSpec = tween(200),
+                expandFrom = Alignment.Bottom
+            ),
+            exit = shrinkVertically(
+                animationSpec = tween(200),
+                shrinkTowards = Alignment.Bottom
+            )
+        ) {
+            HistoryPanel(
+                commandHistory = commandHistory,
+                onCommandClick = { command ->
+                    onHistoryCommandClick(command)
+                    activePanel = ActivePanel.NONE
+                    onInteraction()
+                },
+                onClearHistory = onClearHistory
             )
         }
 
@@ -194,6 +233,24 @@ fun TerminalBottomBar(
                         imageVector = Icons.AutoMirrored.Filled.List,
                         contentDescription = "Quick commands",
                         tint = if (activePanel == ActivePanel.COMMANDS) TealActive else TealText,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // 1b. History button
+                IconButton(
+                    onClick = {
+                        activePanel = if (activePanel == ActivePanel.HISTORY) {
+                            ActivePanel.NONE
+                        } else {
+                            ActivePanel.HISTORY
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccessTime,
+                        contentDescription = "Command history",
+                        tint = if (activePanel == ActivePanel.HISTORY) TealActive else TealText,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -299,13 +356,146 @@ fun TerminalBottomBar(
 }
 
 /**
- * Popup panel showing saved Quick Commands as a vertical list.
- * Appears above the bottom bar when the commands button is toggled.
+ * Popup panel showing saved Quick Commands as a vertical list with a search bar.
+ * As the user types, filters quick commands by title/command matching the query.
+ * Below filtered quick commands, shows a "Recent" section with matching history commands.
  */
 @Composable
 private fun CommandsPanel(
     quickCommands: List<QuickCommand>,
+    commandHistory: List<CommandHistory>,
     onCommandClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredQuickCommands = remember(quickCommands, searchQuery) {
+        if (searchQuery.isBlank()) quickCommands
+        else quickCommands.filter { cmd ->
+            cmd.title.contains(searchQuery, ignoreCase = true) ||
+                cmd.command.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val filteredHistory = remember(commandHistory, searchQuery) {
+        if (searchQuery.isBlank()) commandHistory
+        else commandHistory.filter { entry ->
+            entry.command.contains(searchQuery, ignoreCase = true)
+        }
+    }
+    // Deduplicate history commands for display
+    val uniqueHistoryCommands = remember(filteredHistory) {
+        filteredHistory.distinctBy { it.command }
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Search bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = {
+                    Text(
+                        "Search commands...",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TealActive,
+                    cursorColor = TealText
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .height(44.dp)
+            )
+
+            if (filteredQuickCommands.isEmpty() && uniqueHistoryCommands.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (searchQuery.isBlank()) "No quick commands saved"
+                        else "No matching commands",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 240.dp)
+                        .padding(vertical = 4.dp)
+                ) {
+                    // Quick commands section
+                    if (filteredQuickCommands.isNotEmpty()) {
+                        items(
+                            items = filteredQuickCommands,
+                            key = { "qc_${it.id}" }
+                        ) { command ->
+                            CommandItem(
+                                command = command,
+                                onClick = { onCommandClick(command.command) }
+                            )
+                        }
+                    }
+
+                    // Recent history section
+                    if (uniqueHistoryCommands.isNotEmpty()) {
+                        item(key = "history_header") {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "Recent",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        items(
+                            items = uniqueHistoryCommands.take(10),
+                            key = { "hist_${it.id}" }
+                        ) { entry ->
+                            HistoryCommandItem(
+                                command = entry.command,
+                                executedAt = entry.executedAt,
+                                onClick = { onCommandClick(entry.command) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Popup panel showing command history for the current host.
+ * Appears above the bottom bar when the history button is toggled.
+ */
+@Composable
+private fun HistoryPanel(
+    commandHistory: List<CommandHistory>,
+    onCommandClick: (String) -> Unit,
+    onClearHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -318,7 +508,7 @@ private fun CommandsPanel(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        if (quickCommands.isEmpty()) {
+        if (commandHistory.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -326,30 +516,95 @@ private fun CommandsPanel(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No quick commands saved",
+                    text = "No command history",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 200.dp)
-                    .padding(vertical = 4.dp)
-            ) {
-                items(
-                    items = quickCommands,
-                    key = { it.id }
-                ) { command ->
-                    CommandItem(
-                        command = command,
-                        onClick = { onCommandClick(command.command) }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .padding(vertical = 4.dp)
+                ) {
+                    items(
+                        items = commandHistory,
+                        key = { it.id }
+                    ) { entry ->
+                        HistoryCommandItem(
+                            command = entry.command,
+                            executedAt = entry.executedAt,
+                            onClick = { onCommandClick(entry.command) }
+                        )
+                    }
+                }
+
+                // Clear history button
+                TextButton(
+                    onClick = onClearHistory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Clear history",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
         }
     }
+}
+
+/**
+ * A single history command item showing the command text and relative timestamp.
+ */
+@Composable
+private fun HistoryCommandItem(
+    command: String,
+    executedAt: Long,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = command,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TealText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = formatRelativeTime(executedAt),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * Formats a timestamp as a relative time string (e.g. "2 min ago").
+ */
+private fun formatRelativeTime(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
+    val now = System.currentTimeMillis()
+    return DateUtils.getRelativeTimeSpanString(
+        timestamp,
+        now,
+        DateUtils.MINUTE_IN_MILLIS,
+        DateUtils.FORMAT_ABBREV_RELATIVE
+    ).toString()
 }
 
 /**

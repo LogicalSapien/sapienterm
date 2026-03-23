@@ -40,12 +40,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,7 +52,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -64,15 +61,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -88,13 +82,11 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
@@ -103,11 +95,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.logicalsapien.sapienssh.R
 import com.logicalsapien.sapienssh.data.entity.Host
 import com.logicalsapien.sapienssh.service.PromptRequest
+import com.logicalsapien.sapienssh.service.TerminalBridge
 import org.connectbot.terminal.ProgressState
 import org.connectbot.terminal.SelectionController
 import org.connectbot.terminal.Terminal
@@ -168,7 +160,6 @@ fun ConsoleScreen(
     // Read preferences
     val prefs = remember { PreferenceManager.getDefaultSharedPreferences(context) }
     var fullscreen by remember { mutableStateOf(prefs.getBoolean("fullscreen", false)) }
-    var titleBarHide by remember { mutableStateOf(prefs.getBoolean("titlebarhide", false)) }
     val volumeKeysChangeFontSize = remember { prefs.getBoolean(PreferenceConstants.VOLUME_FONT, true) }
 
     // Keyboard state
@@ -185,11 +176,12 @@ fun ConsoleScreen(
     var showDisconnectDialog by remember { mutableStateOf(false) }
     var showTextInputDialog by remember { mutableStateOf(false) }
     var showRenameSessionDialog by remember { mutableStateOf(false) }
-    var showTitleBar by remember { mutableStateOf(!titleBarHide) }
-    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var scannedUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectionController by remember { mutableStateOf<SelectionController?>(null) }
     var imeVisible by remember { mutableStateOf(false) }
+
+    // Tab close confirmation state
+    var bridgeToClose by remember { mutableStateOf<TerminalBridge?>(null) }
 
     // Apply fullscreen mode and display cutout settings
     LaunchedEffect(fullscreen) {
@@ -261,14 +253,6 @@ fun ConsoleScreen(
         wasBiometricPromptActive = isBiometricPromptActive
     }
 
-    // Auto-hide timer for title bar only (keyboard strip is always visible now)
-    LaunchedEffect(lastInteractionTime, titleBarHide) {
-        if (titleBarHide) {
-            delay(3000)
-            showTitleBar = false
-        }
-    }
-
     val currentBridge = uiState.bridges.getOrNull(uiState.currentBridgeIndex)
     // These values are computed from bridge state and will recompute when uiState.revision changes
     val sessionOpen = currentBridge?.isSessionOpen == true
@@ -320,13 +304,6 @@ fun ConsoleScreen(
     }
 
     fun handleTerminalInteraction() {
-        // Show title bar temporarily when terminal is tapped (if auto-hide enabled)
-        if (titleBarHide) {
-            showTitleBar = true
-        }
-        // Reset the timer for title bar auto-hide
-        lastInteractionTime = System.currentTimeMillis()
-
         // Bring up the soft keyboard when the terminal area is tapped
         // (unless a hardware keyboard is connected)
         if (!hasHardwareKeyboard) {
@@ -334,8 +311,6 @@ fun ConsoleScreen(
             termFocusRequester.requestFocus()
         }
     }
-
-    var titleBarHeight by remember { mutableStateOf(0.dp) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -353,25 +328,181 @@ fun ConsoleScreen(
                 .padding(
                     start = innerPadding.calculateStartPadding(layoutDirection),
                     end = innerPadding.calculateEndPadding(layoutDirection),
-                    top = if (!titleBarHide) 0.dp else innerPadding.calculateTopPadding(),
+                    top = innerPadding.calculateTopPadding(),
                     bottom = innerPadding.calculateBottomPadding()
                 )
                 .windowInsetsPadding(WindowInsets.imeAnimationTarget)
         ) {
-            // Session tab bar - always visible when bridges exist
-            // Needs top padding equal to titleBarHeight so it's not hidden
-            // behind the overlay TopAppBar
+            // Session tab bar with integrated back + menu buttons — the only top element
             if (uiState.bridges.isNotEmpty() && !uiState.isLoading) {
-                SessionTabBar(
-                    bridges = uiState.bridges,
-                    currentIndex = uiState.currentBridgeIndex,
-                    onSelectTab = { viewModel.selectBridge(it) },
-                    onCloseTab = { bridge -> viewModel.disconnectBridge(bridge) },
-                    onRenameTab = { index, newName -> viewModel.renameTab(index, newName) },
-                    modifier = Modifier.padding(
-                        top = if (!titleBarHide) titleBarHeight else 0.dp
+                Box {
+                    SessionTabBar(
+                        bridges = uiState.bridges,
+                        currentIndex = uiState.currentBridgeIndex,
+                        onSelectTab = { viewModel.selectBridge(it) },
+                        onCloseTabRequested = { bridge -> bridgeToClose = bridge },
+                        onRenameTab = { index, newName -> viewModel.renameTab(index, newName) },
+                        onNavigateBack = onNavigateBack,
+                        onMenuClick = {
+                            viewModel.refreshMenuState()
+                            showMenu = true
+                        }
                     )
-                )
+
+                    // Overflow menu anchored to the tab bar
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = {
+                            showMenu = false
+                            termFocusRequester.requestFocus()
+                        }
+                    ) {
+                        // Paste
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.console_menu_paste)) },
+                            onClick = {
+                                showMenu = false
+                                currentBridge?.let { bridge ->
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip =
+                                        clipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+                                    bridge.injectString(clip)
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.ContentPaste, contentDescription = null)
+                            },
+                            enabled = currentBridge != null
+                        )
+
+                        // Reconnect (shown only when disconnected)
+                        if (disconnected) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.console_menu_reconnect)) },
+                                onClick = {
+                                    showMenu = false
+                                    currentBridge?.let { viewModel.reconnect(it) }
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                }
+                            )
+                        }
+
+                        // Disconnect/Close
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (!sessionOpen && disconnected) {
+                                        stringResource(R.string.console_menu_close)
+                                    } else {
+                                        stringResource(R.string.list_host_disconnect)
+                                    }
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                showDisconnectDialog = true
+                            },
+                            enabled = currentBridge != null,
+                            leadingIcon = {
+                                Icon(Icons.Default.LinkOff, null)
+                            }
+                        )
+
+                        // Rename session
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.console_menu_rename_session)) },
+                            onClick = {
+                                showMenu = false
+                                showRenameSessionDialog = true
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, contentDescription = null)
+                            },
+                            enabled = currentBridge != null
+                        )
+
+                        // URL Scan
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.console_menu_urlscan)) },
+                            onClick = {
+                                showMenu = false
+                                currentBridge?.let { bridge ->
+                                    scannedUrls = bridge.scanForURLs()
+                                    showUrlScanDialog = true
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Link, contentDescription = null)
+                            },
+                            enabled = currentBridge != null
+                        )
+
+                        // Resize
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.console_menu_resize)) },
+                            onClick = {
+                                showMenu = false
+                                showResizeDialog = true
+                            },
+                            enabled = sessionOpen
+                        )
+
+                        // Port Forwards (if available)
+                        if (canForwardPorts) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.console_menu_portforwards)) },
+                                onClick = {
+                                    showMenu = false
+                                    currentBridge.host.id.let {
+                                        onNavigateToPortForwards(it)
+                                    }
+                                },
+                                enabled = sessionOpen
+                            )
+                        }
+
+                        // Fullscreen toggle
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.pref_fullscreen_title)) },
+                            onClick = {
+                                fullscreen = !fullscreen
+                                prefs.edit { putBoolean("fullscreen", fullscreen) }
+                            },
+                            trailingIcon = {
+                                Checkbox(
+                                    checked = fullscreen,
+                                    onCheckedChange = null
+                                )
+                            }
+                        )
+                    }
+                }
+
+                // Progress indicator for OSC 9;4 progress reporting
+                val progressState = uiState.progressState
+                if (progressState != null && progressState != ProgressState.HIDDEN) {
+                    val progressColor = when (progressState) {
+                        ProgressState.ERROR -> MaterialTheme.colorScheme.error
+                        ProgressState.WARNING -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+
+                    if (progressState == ProgressState.INDETERMINATE) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = progressColor
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { uiState.progressValue / 100f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = progressColor
+                        )
+                    }
+                }
             }
 
             Box(
@@ -571,10 +702,12 @@ fun ConsoleScreen(
             // separate QuickCommandToolbar, ExtendedKeyboardStrip, and keyboard toggle
             if (currentBridge != null) {
                 val quickCommands by viewModel.quickCommands.collectAsState()
+                val commandHistory by viewModel.commandHistory.collectAsState()
 
                 TerminalBottomBar(
                     bridge = currentBridge,
                     quickCommands = quickCommands,
+                    commandHistory = commandHistory,
                     showSoftwareKeyboard = showSoftwareKeyboard,
                     onToggleKeyboard = {
                         showSoftwareKeyboard = !showSoftwareKeyboard
@@ -586,6 +719,11 @@ fun ConsoleScreen(
                         viewModel.sendQuickCommand(command)
                         handleTerminalInteraction()
                     },
+                    onHistoryCommandClick = { command ->
+                        viewModel.sendQuickCommand(command)
+                        handleTerminalInteraction()
+                    },
+                    onClearHistory = { viewModel.clearHistory() },
                     onInteraction = { handleTerminalInteraction() }
                 )
             }
@@ -634,6 +772,18 @@ fun ConsoleScreen(
             )
         }
 
+        // Tab close confirmation dialog
+        bridgeToClose?.let { bridge ->
+            TabCloseConfirmDialog(
+                bridgeName = getTabDisplayName(bridge),
+                onDismiss = { bridgeToClose = null },
+                onConfirm = {
+                    bridgeToClose = null
+                    viewModel.disconnectBridge(bridge)
+                }
+            )
+        }
+
         if (showTextInputDialog && currentBridge != null) {
             // TODO: Get selected text from TerminalEmulator when selection is implemented
             val selectedText = ""
@@ -664,233 +814,6 @@ fun ConsoleScreen(
             )
         }
 
-        // Overlay TopAppBar - always visible when titleBarHide is false,
-        // or temporarily visible when titleBarHide is true and showTitleBar is true
-        if (!titleBarHide || showTitleBar) {
-            val density = LocalDensity.current
-            TopAppBar(
-                title = {
-                    Text(
-                        currentBridge?.let { getTabDisplayName(it) }
-                            ?: stringResource(R.string.console_default_title),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                modifier = Modifier.onSizeChanged {
-                    titleBarHeight = with(density) { it.height.toDp() }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            stringResource(R.string.button_back)
-                        )
-                    }
-                },
-                colors = if (titleBarHide) {
-                    // Translucent overlay when auto-hide is enabled
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-                    )
-                } else {
-                    // Solid color when permanently visible
-                    TopAppBarDefaults.topAppBarColors()
-                },
-                actions = {
-                    // Paste button - always visible
-                    IconButton(
-                        onClick = {
-                            currentBridge?.let { bridge ->
-                                val clipboard =
-                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip =
-                                    clipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-                                bridge.injectString(clip)
-                            }
-                        },
-                        enabled = currentBridge != null
-                    ) {
-                        Icon(
-                            Icons.Default.ContentPaste,
-                            contentDescription = stringResource(R.string.console_menu_paste)
-                        )
-                    }
-
-                    // More menu
-                    Box {
-                        IconButton(onClick = {
-                            // Refresh menu state to update enabled/disabled items
-                            viewModel.refreshMenuState()
-                            showMenu = true
-                        }) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.button_more_options)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = {
-                                showMenu = false
-                                // Hide title bar again after closing menu if auto-hide is enabled
-                                if (titleBarHide) {
-                                    showTitleBar = false
-                                }
-                                termFocusRequester.requestFocus()
-                            }
-                        ) {
-                            // Reconnect (shown only when disconnected)
-                            if (disconnected) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.console_menu_reconnect)) },
-                                    onClick = {
-                                        showMenu = false
-                                        currentBridge?.let { viewModel.reconnect(it) }
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Refresh, contentDescription = null)
-                                    }
-                                )
-                            }
-
-                            // Disconnect/Close
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        if (!sessionOpen && disconnected) {
-                                            stringResource(R.string.console_menu_close)
-                                        } else {
-                                            stringResource(R.string.list_host_disconnect)
-                                        }
-                                    )
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    showDisconnectDialog = true
-                                },
-                                enabled = currentBridge != null,
-                                leadingIcon = {
-                                    Icon(Icons.Default.LinkOff, null)
-                                }
-                            )
-
-                            // Rename session
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.console_menu_rename_session)) },
-                                onClick = {
-                                    showMenu = false
-                                    showRenameSessionDialog = true
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                },
-                                enabled = currentBridge != null
-                            )
-
-                            // URL Scan
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.console_menu_urlscan)) },
-                                onClick = {
-                                    showMenu = false
-                                    currentBridge?.let { bridge ->
-                                        scannedUrls = bridge.scanForURLs()
-                                        showUrlScanDialog = true
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Link, contentDescription = null)
-                                },
-                                enabled = currentBridge != null
-                            )
-
-                            // Resize
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.console_menu_resize)) },
-                                onClick = {
-                                    showMenu = false
-                                    showResizeDialog = true
-                                },
-                                enabled = sessionOpen
-                            )
-
-                            // Port Forwards (if available)
-                            if (canForwardPorts) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.console_menu_portforwards)) },
-                                    onClick = {
-                                        showMenu = false
-                                        currentBridge.host.id.let {
-                                            onNavigateToPortForwards(
-                                                it
-                                            )
-                                        }
-                                    },
-                                    enabled = sessionOpen
-                                )
-                            }
-
-                            // Fullscreen toggle
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pref_fullscreen_title)) },
-                                onClick = {
-                                    fullscreen = !fullscreen
-                                    prefs.edit { putBoolean("fullscreen", fullscreen) }
-                                },
-                                trailingIcon = {
-                                    Checkbox(
-                                        checked = fullscreen,
-                                        onCheckedChange = null
-                                    )
-                                }
-                            )
-
-                            // Title bar auto-hide toggle
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pref_titlebarhide_title)) },
-                                onClick = {
-                                    titleBarHide = !titleBarHide
-                                    prefs.edit { putBoolean("titlebarhide", titleBarHide) }
-                                },
-                                trailingIcon = {
-                                    Checkbox(
-                                        checked = titleBarHide,
-                                        onCheckedChange = null
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            )
-
-            // Progress indicator for OSC 9;4 progress reporting
-            val progressState = uiState.progressState
-            if (progressState != null && progressState != ProgressState.HIDDEN) {
-                val progressColor = when (progressState) {
-                    ProgressState.ERROR -> MaterialTheme.colorScheme.error
-                    ProgressState.WARNING -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
-                }
-
-                if (progressState == ProgressState.INDETERMINATE) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = titleBarHeight),
-                        color = progressColor
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        progress = { uiState.progressValue / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = titleBarHeight),
-                        color = progressColor
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -909,6 +832,33 @@ private fun HostDisconnectDialog(
             TextButton(
                 onClick = onConfirm
             ) {
+                Text(stringResource(R.string.button_yes))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.button_no))
+            }
+        }
+    )
+}
+
+/**
+ * Confirmation dialog shown when the user taps the X button on a session tab.
+ */
+@Composable
+private fun TabCloseConfirmDialog(
+    bridgeName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            Text(stringResource(R.string.disconnect_tab_confirm, bridgeName))
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
                 Text(stringResource(R.string.button_yes))
             }
         },

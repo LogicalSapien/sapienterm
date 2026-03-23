@@ -1482,4 +1482,16 @@
 	<string name="remember_password">Remember password</string>
 	<!-- Rename session menu item in terminal overflow menu -->
 	<string name="console_menu_rename_session">Rename session</string>
+	<!-- Tab close confirmation dialog -->
+	<string name="disconnect_tab_confirm">Disconnect from %1$s?</string>
+	<!-- Connection groups -->
+	<string name="group_all">All</string>
+	<string name="group_create_title">New Group</string>
+	<string name="group_name_hint">Group name</string>
+	<string name="group_rename_title">Rename Group</string>
+	<string name="group_delete_confirm">Delete group \"%1$s\"? Connections will be moved to ungrouped.</string>
+	<string name="group_no_group">No group</string>
+	<string name="group_move_to">Move to group</string>
+	<string name="group_rename">Rename</string>
+	<string name="group_delete">Delete</string>
 </resources>
