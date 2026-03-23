@@ -38,7 +38,7 @@ spotless {
     ratchetFrom = "origin/main"
 
     java {
-        target("app/src/main/java/com/logicalsapien/sapienssh/**/*.java")
+        target("app/src/main/java/com/logicalsapien/sapienterm/**/*.java")
         importOrder()
         removeUnusedImports()
         googleJavaFormat()

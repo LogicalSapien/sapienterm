@@ -39,14 +39,14 @@ appVersioning {
 }
 
 android {
-    namespace = "com.logicalsapien.sapienssh"
+    namespace = "com.logicalsapien.sapienterm"
     compileSdk =
         libs.versions.compileSdk
             .get()
             .toInt()
 
     defaultConfig {
-        applicationId = "com.logicalsapien.sapienssh"
+        applicationId = "com.logicalsapien.sapienterm"
 
         minSdk = 26
         targetSdk =
@@ -61,8 +61,8 @@ android {
             debugSymbolLevel = "full"
         }
 
-        testApplicationId = "com.logicalsapien.sapienssh.tests"
-        testInstrumentationRunner = "com.logicalsapien.sapienssh.HiltTestRunner"
+        testApplicationId = "com.logicalsapien.sapienterm.tests"
+        testInstrumentationRunner = "com.logicalsapien.sapienterm.HiltTestRunner"
 
         // The following argument makes the Android Test Orchestrator run its
         // "pm clear" command after each test invocation. This command ensures
@@ -222,7 +222,7 @@ val generateExportSchema by tasks.registering {
     val excludedFields = setOf("last_connect", "host_key_algo")
 
     // Read schema version from ConnectBotDatabase.kt to avoid duplicate definitions
-    val databaseFile = file("src/main/java/com/logicalsapien/sapienssh/data/ConnectBotDatabase.kt")
+    val databaseFile = file("src/main/java/com/logicalsapien/sapienterm/data/ConnectBotDatabase.kt")
     val schemaVersion =
         databaseFile
             .readText()
@@ -231,7 +231,7 @@ val generateExportSchema by tasks.registering {
             ?.get(1)
             ?.toInt()
             ?: error("Could not find SCHEMA_VERSION in $databaseFile")
-    val inputFile = file("schemas/com.logicalsapien.sapienssh.data.ConnectBotDatabase/$schemaVersion.json")
+    val inputFile = file("schemas/com.logicalsapien.sapienterm.data.ConnectBotDatabase/$schemaVersion.json")
     val outputDir = file("build/generated/exportSchema")
     val outputFile = file("$outputDir/export_schema.json")
 

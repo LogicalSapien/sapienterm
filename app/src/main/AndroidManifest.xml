@@ -90,7 +90,7 @@
 		</activity>
 
 		<service
-			android:name="com.logicalsapien.sapienssh.service.TerminalManager"
+			android:name="com.logicalsapien.sapienterm.service.TerminalManager"
 			android:configChanges="keyboardHidden|orientation|screenSize|screenLayout"
 			android:description="@string/service_desc"
 			android:foregroundServiceType="remoteMessaging"/>

@@ -7,7 +7,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "SapienSSH"
+rootProject.name = "SapienTerm"
 
 val TRANSLATIONS_ONLY: String? by settings
 

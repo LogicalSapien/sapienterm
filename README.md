@@ -1,4 +1,4 @@
-# SapienSSH
+# SapienTerm
 
 A modern Android SSH terminal app by [LogicalSapien](https://github.com/logicalsapien), built on ConnectBot's SSH engine.
 
@@ -12,7 +12,7 @@ A modern Android SSH terminal app by [LogicalSapien](https://github.com/logicals
 - Credentials vault -- securely store SSH keys and passwords with Android Keystore encryption
 - SSH key generation (RSA 2048/4096, Ed25519) and import from file
 - Link credentials to connections for automatic authentication
-- Export/Import data with optional encrypted backup (.sapienssh)
+- Export/Import data with optional encrypted backup (.sapienterm)
 - Port forwarding (local, remote, dynamic/SOCKS5)
 - Host key verification with fingerprint display
 - Multiple simultaneous terminal sessions
@@ -28,7 +28,7 @@ A modern Android SSH terminal app by [LogicalSapien](https://github.com/logicals
 
 ```sh
 git clone <repo-url>
-cd sapienssh
+cd sapienterm
 ./gradlew assembleOssDebug
 ```
 
