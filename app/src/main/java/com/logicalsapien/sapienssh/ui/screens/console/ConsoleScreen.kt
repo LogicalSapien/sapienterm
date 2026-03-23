@@ -698,6 +698,19 @@ fun ConsoleScreen(
             }
             } // end Box
 
+            // CLI prompt action bar (shown when interactive prompts are detected)
+            if (currentBridge != null) {
+                val detectedPrompt by viewModel.detectedPrompt.collectAsState()
+                CliPromptBar(
+                    detectedPrompt = detectedPrompt,
+                    onOptionSelected = { option ->
+                        viewModel.sendPromptResponse(option.sendValue)
+                        handleTerminalInteraction()
+                    },
+                    onDismiss = { viewModel.dismissPrompt() }
+                )
+            }
+
             // Unified terminal bottom bar (Termius-style) - replaces the
             // separate QuickCommandToolbar, ExtendedKeyboardStrip, and keyboard toggle
             if (currentBridge != null) {

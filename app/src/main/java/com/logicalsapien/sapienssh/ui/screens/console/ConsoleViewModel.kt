@@ -21,6 +21,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.logicalsapien.sapienssh.data.CommandHistoryRepository
@@ -42,6 +45,8 @@ import com.logicalsapien.sapienssh.data.entity.QuickCommand
 import com.logicalsapien.sapienssh.di.CoroutineDispatchers
 import com.logicalsapien.sapienssh.service.TerminalBridge
 import com.logicalsapien.sapienssh.service.TerminalManager
+import com.logicalsapien.sapienssh.util.CliPromptDetector
+import com.logicalsapien.sapienssh.util.DetectedPrompt
 import org.connectbot.terminal.ProgressState
 import javax.inject.Inject
 
@@ -83,6 +88,13 @@ class ConsoleViewModel @Inject constructor(
     /** Whether the quick command chips are visible (toggle state). */
     val isQuickCommandToolbarVisible: StateFlow<Boolean> = _isQuickCommandToolbarVisible.asStateFlow()
 
+    /** Detected CLI prompt for the current bridge (null when none detected). */
+    private val _detectedPrompt = MutableStateFlow<DetectedPrompt?>(null)
+    val detectedPrompt: StateFlow<DetectedPrompt?> = _detectedPrompt.asStateFlow()
+
+    /** Job for the periodic prompt detection polling loop. */
+    private var promptDetectionJob: Job? = null
+
     /** Tracks the current bridge's host ID for reactive history queries. */
     private val _currentHostId = MutableStateFlow(hostId)
 
@@ -114,6 +126,9 @@ class ConsoleViewModel @Inject constructor(
                     _uiState.update { it.copy(revision = it.revision + 1) }
                 }
             }
+
+            // Start CLI prompt detection polling
+            startPromptDetection()
 
             // First, try to find or create the bridge for this host
             if (hostId != -1L) {
@@ -307,6 +322,8 @@ class ConsoleViewModel @Inject constructor(
             // Update the host ID so command history reacts to bridge changes
             val bridge = _uiState.value.bridges.getOrNull(index)
             bridge?.host?.id?.let { _currentHostId.value = it }
+            // Reset prompt detection for the new bridge
+            _detectedPrompt.value = null
         }
     }
 
@@ -382,5 +399,51 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch {
             commandHistoryRepository.deleteForHost(currentHostId)
         }
+    }
+
+    /**
+     * Send a prompt option value to the active terminal bridge and dismiss the bar.
+     */
+    fun sendPromptResponse(value: String) {
+        val currentBridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
+        currentBridge?.injectString(value)
+        _detectedPrompt.value = null
+    }
+
+    /**
+     * Dismiss the detected prompt bar without sending anything.
+     */
+    fun dismissPrompt() {
+        _detectedPrompt.value = null
+    }
+
+    /**
+     * Start (or restart) the periodic prompt detection loop for the current bridge.
+     * Polls the relay line buffer every [PROMPT_SCAN_INTERVAL_MS] and runs the
+     * [CliPromptDetector] on recent output lines. Detection stops when the bridge
+     * changes or the ViewModel is cleared.
+     */
+    private fun startPromptDetection() {
+        promptDetectionJob?.cancel()
+        _detectedPrompt.value = null
+
+        promptDetectionJob = viewModelScope.launch {
+            while (isActive) {
+                delay(PROMPT_SCAN_INTERVAL_MS)
+                val bridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
+                if (bridge != null && bridge.isSessionOpen) {
+                    val lines = bridge.getRecentOutputLines()
+                    val detected = CliPromptDetector.detect(lines)
+                    _detectedPrompt.value = detected
+                } else {
+                    _detectedPrompt.value = null
+                }
+            }
+        }
+    }
+
+    companion object {
+        /** How often to scan terminal output for CLI prompts, in milliseconds. */
+        private const val PROMPT_SCAN_INTERVAL_MS = 1500L
     }
 }

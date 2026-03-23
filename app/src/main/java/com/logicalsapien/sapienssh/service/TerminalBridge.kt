@@ -914,6 +914,16 @@ class TerminalBridge {
     }
 
     /**
+     * Returns the recent output lines captured by the relay.
+     * Used by the CLI prompt detector to identify interactive prompts.
+     *
+     * @return list of recent output lines, or empty list if relay is not active
+     */
+    fun getRecentOutputLines(): List<String> {
+        return relay?.getRecentLines() ?: emptyList()
+    }
+
+    /**
      * @return
      */
     fun isUsingNetwork(): Boolean = transport?.usesNetwork() ?: false

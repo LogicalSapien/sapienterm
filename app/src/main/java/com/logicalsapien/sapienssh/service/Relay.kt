@@ -31,6 +31,7 @@ import java.nio.charset.CharsetDecoder
 import java.nio.charset.CharsetEncoder
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import java.util.LinkedList
 
 /**
  * Coroutine-based relay that handles incoming data from the transport to the terminal buffer.
@@ -56,6 +57,31 @@ class Relay(
     private val sourceBuffer = ByteBuffer.allocate(BUFFER_SIZE)
     private val charBuffer = CharBuffer.allocate(BUFFER_SIZE)
     private val destBuffer = ByteBuffer.allocate(BUFFER_SIZE)
+
+    /**
+     * Ring buffer of the last [LINE_BUFFER_CAPACITY] lines of decoded output text.
+     * Used by [CliPromptDetector][com.logicalsapien.sapienssh.util.CliPromptDetector]
+     * to detect interactive CLI prompts.
+     *
+     * Access is synchronized on the [lineBuffer] instance itself.
+     */
+    private val lineBuffer = LinkedList<String>()
+    private val currentLine = StringBuilder()
+
+    /**
+     * Returns a snapshot of the recent output lines (up to [LINE_BUFFER_CAPACITY]).
+     * Thread-safe.
+     */
+    fun getRecentLines(): List<String> {
+        synchronized(lineBuffer) {
+            val result = ArrayList<String>(lineBuffer.size + 1)
+            result.addAll(lineBuffer)
+            if (currentLine.isNotEmpty()) {
+                result.add(currentLine.toString())
+            }
+            return result
+        }
+    }
 
     init {
         setCharset(encoding)
@@ -135,6 +161,9 @@ class Relay(
 
                     charBuffer.flip()
 
+                    // Capture decoded characters into the line buffer for prompt detection
+                    captureDecodedChars(charBuffer)
+
                     encoder.encode(charBuffer, destBuffer, endOfInput)
                     destBuffer.flip()
 
@@ -181,8 +210,57 @@ class Relay(
         }
     }
 
+    /**
+     * Scans decoded characters for newlines and appends them to the line buffer.
+     * Strips ANSI escape sequences to keep lines clean for pattern matching.
+     * This reads from the current position to the limit without consuming the buffer
+     * (it marks and resets the position).
+     */
+    private fun captureDecodedChars(buffer: CharBuffer) {
+        val pos = buffer.position()
+        val lim = buffer.limit()
+        if (pos >= lim) return
+
+        synchronized(lineBuffer) {
+            for (i in pos until lim) {
+                val c = buffer.get(i)
+                when (c) {
+                    '\n' -> {
+                        lineBuffer.add(stripAnsiEscapes(currentLine.toString()))
+                        currentLine.clear()
+                        if (lineBuffer.size > LINE_BUFFER_CAPACITY) {
+                            lineBuffer.removeFirst()
+                        }
+                    }
+                    '\r' -> {
+                        // Carriage return: reset current line (common in \r\n sequences)
+                        // Don't emit a line -- the \n will do that
+                    }
+                    else -> {
+                        // Cap line length to avoid unbounded growth
+                        if (currentLine.length < MAX_LINE_LENGTH) {
+                            currentLine.append(c)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "CB.Relay"
         private const val BUFFER_SIZE = 4096
+        private const val LINE_BUFFER_CAPACITY = 15
+        private const val MAX_LINE_LENGTH = 512
+
+        /**
+         * Strips ANSI/VT100 escape sequences from a string so that pattern
+         * matching operates on visible text only.
+         */
+        private val ANSI_ESCAPE_REGEX = Regex("""\x1B(?:\[[0-9;]*[A-Za-z]|\][^\x07]*\x07|\][^\x1B]*\x1B\\|[()][AB012])""")
+
+        fun stripAnsiEscapes(text: String): String {
+            return ANSI_ESCAPE_REGEX.replace(text, "")
+        }
     }
 }
