@@ -34,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -298,20 +297,22 @@ fun GeneratePubkeyScreenContent(
                     .clickable(enabled = !uiState.useBiometric) {
                         onUnlockAtStartupChange(!uiState.unlockAtStartup)
                     }
+                    .padding(vertical = 8.dp)
             ) {
-                Checkbox(
-                    checked = uiState.unlockAtStartup,
-                    onCheckedChange = onUnlockAtStartupChange,
-                    enabled = !uiState.useBiometric
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.pubkey_load_on_start),
+                    style = MaterialTheme.typography.bodyLarge,
                     color = if (uiState.useBiometric) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     } else {
                         MaterialTheme.colorScheme.onSurface
-                    }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = uiState.unlockAtStartup,
+                    onCheckedChange = onUnlockAtStartupChange,
+                    enabled = !uiState.useBiometric
                 )
             }
 
@@ -322,13 +323,17 @@ fun GeneratePubkeyScreenContent(
                     .clickable {
                         onConfirmUseChange(!uiState.confirmUse)
                     }
+                    .padding(vertical = 8.dp)
             ) {
-                Checkbox(
+                Text(
+                    text = stringResource(R.string.pubkey_confirm_use),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
                     checked = uiState.confirmUse,
                     onCheckedChange = onConfirmUseChange
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.pubkey_confirm_use))
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -111,7 +111,7 @@ fun HintsScreen(
             item {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Here are some tips to help you get the most out of ConnectBot:",
+                        text = "Here are some tips to help you get the most out of SapienSSH:",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )

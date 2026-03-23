@@ -83,7 +83,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import com.logicalsapien.sapienssh.ui.theme.StatusGreen
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -463,7 +463,7 @@ private fun PubkeyListItem(
                         .padding(2.dp)
                         .border(
                             width = 2.dp, // Border thickness
-                            color = Color.Green, // Border color
+                            color = StatusGreen, // Border color
                             shape = CircleShape // Makes the border a circle
                         )
                         .clip(CircleShape)

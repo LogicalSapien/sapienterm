@@ -28,14 +28,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -276,29 +275,30 @@ fun PubkeyEditorScreenContent(
                             .clickable(enabled = !uiState.willBeEncrypted) {
                                 onUnlockAtStartupChange(!uiState.unlockAtStartup)
                             }
+                            .padding(vertical = 8.dp)
                     ) {
-                        Checkbox(
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.pubkey_load_on_start),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (!uiState.willBeEncrypted) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                }
+                            )
+                            if (uiState.willBeEncrypted && uiState.unlockAtStartup) {
+                                Text(
+                                    text = stringResource(R.string.pubkey_editor_encrypted_startup_warning),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        Switch(
                             checked = uiState.unlockAtStartup,
                             onCheckedChange = onUnlockAtStartupChange,
                             enabled = !uiState.willBeEncrypted
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.pubkey_load_on_start),
-                            color = if (!uiState.willBeEncrypted) {
-                                MaterialTheme.colorScheme.onSurface
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            }
-                        )
-                    }
-
-                    if (uiState.willBeEncrypted && uiState.unlockAtStartup) {
-                        Text(
-                            text = stringResource(R.string.pubkey_editor_encrypted_startup_warning),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(start = 48.dp)
                         )
                     }
 
@@ -309,13 +309,17 @@ fun PubkeyEditorScreenContent(
                             .clickable {
                                 onConfirmUseChange(!uiState.confirmUse)
                             }
+                            .padding(vertical = 8.dp)
                     ) {
-                        Checkbox(
+                        Text(
+                            text = stringResource(R.string.pubkey_confirm_use),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
                             checked = uiState.confirmUse,
                             onCheckedChange = onConfirmUseChange
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.pubkey_confirm_use))
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
