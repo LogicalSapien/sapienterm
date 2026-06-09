@@ -60,3 +60,7 @@ DEV-NOTES.md
 IMPROVEMENTS.md
 STATUS.md
 docs/superpowers/
+
+# Signing keystores — never commit
+*.jks
+*.keystore
