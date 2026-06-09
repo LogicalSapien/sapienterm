@@ -1,14 +1,3 @@
-# Secrets are managed in Doppler (project: apps, config: android).
-# The only GitHub secret needed is DOPPLER_TOKEN (a Doppler service token
-# scoped to apps/android — generate one at doppler.com/workplace/service-tokens).
-#
-# Doppler secret used:
-#   SAPIENTERM_SECRETS  — JSON with keystore_base64, keystore_password,
-#                         key_alias, key_password
-#   PLAY_SERVICE_ACCOUNT_JSON — shared Play Store service account (flat secret)
-#
-# The workflow triggers on semver tags (e.g. v1.2.3).
-
 name: Release
 
 on:
@@ -18,14 +7,14 @@ on:
 
 jobs:
   release:
-    name: Build & publish release AAB
+    name: Build & publish
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # required so app-versioning plugin can read git tags
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -34,30 +23,30 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Fetch secrets from Doppler
+      - name: Fetch secrets
         uses: dopplerhq/secrets-fetch-action@v1
         with:
           doppler-token: ${{ secrets.DOPPLER_TOKEN }}
-          doppler-project: apps
-          doppler-config: android
+          doppler-project: ${{ secrets.DOPPLER_PROJECT }}
+          doppler-config: ${{ secrets.DOPPLER_CONFIG }}
           inject-env-vars: true
 
-      - name: Decode keystore and set env
+      - name: Prepare signing
         run: |
           KEYSTORE_PATH="${RUNNER_TEMP}/release.jks"
-          echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_base64' | base64 --decode > "${KEYSTORE_PATH}"
-          echo "KEYSTORE_PATH=${KEYSTORE_PATH}"                                    >> "${GITHUB_ENV}"
-          echo "KEYSTORE_PASSWORD=$(echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_password')" >> "${GITHUB_ENV}"
-          echo "KEY_ALIAS=$(echo "$SAPIENTERM_SECRETS"         | jq -r '.key_alias')"         >> "${GITHUB_ENV}"
-          echo "KEY_PASSWORD=$(echo "$SAPIENTERM_SECRETS"      | jq -r '.key_password')"      >> "${GITHUB_ENV}"
+          echo "${{ secrets.APP_SECRETS }}" | jq -r '.keystore_base64' | base64 --decode > "${KEYSTORE_PATH}"
+          echo "KEYSTORE_PATH=${KEYSTORE_PATH}"                                                    >> "${GITHUB_ENV}"
+          echo "KEYSTORE_PASSWORD=$(echo "${{ secrets.APP_SECRETS }}" | jq -r '.keystore_password')" >> "${GITHUB_ENV}"
+          echo "KEY_ALIAS=$(echo "${{ secrets.APP_SECRETS }}"         | jq -r '.key_alias')"         >> "${GITHUB_ENV}"
+          echo "KEY_PASSWORD=$(echo "${{ secrets.APP_SECRETS }}"      | jq -r '.key_password')"      >> "${GITHUB_ENV}"
 
-      - name: Build signed release AAB
+      - name: Build release AAB
         run: ./gradlew bundleGoogleRelease --no-daemon
 
-      - name: Upload AAB to Play Store (internal track)
+      - name: Publish to Play Store
         uses: r0adkll/upload-google-play@v3
         with:
-          serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.logicalsapien.sapienterm
           releaseFiles: app/build/outputs/bundle/googleRelease/*.aab
           track: internal
