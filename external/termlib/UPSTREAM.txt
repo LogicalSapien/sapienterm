@@ -1,0 +1,3 @@
+https://github.com/connectbot/termlib.git
+Revision: 281f826ddace22de0f394ef29233cef07b03fe7d (approx. 0.0.24+)
+Sapienterm: root build.gradle.kts omits net.researchgate.release for Gradle configuration cache compatibility when included as composite build.

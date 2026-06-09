@@ -1,0 +1,62 @@
+# translation artifacts
+launchpad-*.tar.gz
+
+# local config files
+local.properties
+
+# working files
+*~
+
+# OS X sucks
+.DS_Store
+
+# SublimeText working files
+*.sublime-project
+*.sublime-workspace
+
+# Android Studio
+.gradle/
+build/
+
+# Local APK copies from assemble (not committed)
+/dist/
+
+# Cursor / local tooling
+.playwright-mcp/
+
+# Android gradle native build
+\.externalNativeBuild/
+
+# keep code style
+.idea/*
+!.idea/codeStyles/
+!.idea/copyright/
+
+**/.cxx
+.kotlin/
+
+# Jenkinsfile-runner
+\.jenkinsfile-runner/
+.superpowers/
+
+# Internal dev agent files
+STATUS.md
+docs/qa-testing-tracker.md
+
+# Internal dev/agent files — not for public repo
+DEV-NOTES.md
+AGENTS.md
+IMPROVEMENTS.md
+STATUS.md
+CLAUDE.md
+docs/superpowers/
+
+# AI tooling — never publish
+.claude/
+.superpowers/
+CLAUDE.md
+AGENTS.md
+DEV-NOTES.md
+IMPROVEMENTS.md
+STATUS.md
+docs/superpowers/
