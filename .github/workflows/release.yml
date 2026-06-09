@@ -27,18 +27,18 @@ jobs:
         uses: dopplerhq/secrets-fetch-action@v1
         with:
           doppler-token: ${{ secrets.DOPPLER_TOKEN }}
-          doppler-project: ${{ secrets.DOPPLER_PROJECT }}
-          doppler-config: ${{ secrets.DOPPLER_CONFIG }}
+          doppler-project: apps
+          doppler-config: android
           inject-env-vars: true
 
       - name: Prepare signing
         run: |
           KEYSTORE_PATH="${RUNNER_TEMP}/release.jks"
-          echo "${{ secrets.APP_SECRETS }}" | jq -r '.keystore_base64' | base64 --decode > "${KEYSTORE_PATH}"
-          echo "KEYSTORE_PATH=${KEYSTORE_PATH}"                                                    >> "${GITHUB_ENV}"
-          echo "KEYSTORE_PASSWORD=$(echo "${{ secrets.APP_SECRETS }}" | jq -r '.keystore_password')" >> "${GITHUB_ENV}"
-          echo "KEY_ALIAS=$(echo "${{ secrets.APP_SECRETS }}"         | jq -r '.key_alias')"         >> "${GITHUB_ENV}"
-          echo "KEY_PASSWORD=$(echo "${{ secrets.APP_SECRETS }}"      | jq -r '.key_password')"      >> "${GITHUB_ENV}"
+          echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_base64'      | base64 --decode > "${KEYSTORE_PATH}"
+          echo "KEYSTORE_PATH=${KEYSTORE_PATH}"                                         >> "${GITHUB_ENV}"
+          echo "KEYSTORE_PASSWORD=$(echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_password')" >> "${GITHUB_ENV}"
+          echo "KEY_ALIAS=$(echo "$SAPIENTERM_SECRETS"         | jq -r '.key_alias')"         >> "${GITHUB_ENV}"
+          echo "KEY_PASSWORD=$(echo "$SAPIENTERM_SECRETS"      | jq -r '.key_password')"      >> "${GITHUB_ENV}"
 
       - name: Build release AAB
         run: ./gradlew bundleGoogleRelease --no-daemon
@@ -46,7 +46,7 @@ jobs:
       - name: Publish to Play Store
         uses: r0adkll/upload-google-play@v3
         with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.logicalsapien.sapienterm
           releaseFiles: app/build/outputs/bundle/googleRelease/*.aab
           track: internal
