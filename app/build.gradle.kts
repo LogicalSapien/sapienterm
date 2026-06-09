@@ -89,12 +89,34 @@ android {
     }
 
     signingConfigs {
-        if (project.hasProperty("keystorePassword")) {
+        // Resolve signing credentials: env vars take priority (CI), Gradle properties are the
+        // local-dev fallback. If neither is present the release block is skipped so debug
+        // builds continue to work without any signing config.
+        val keystorePathResolved: String? =
+            System.getenv("KEYSTORE_PATH")
+                ?: if (project.hasProperty("keystoreFile")) property("keystoreFile") as String else null
+        val keystorePasswordResolved: String? =
+            System.getenv("KEYSTORE_PASSWORD")
+                ?: if (project.hasProperty("keystorePassword")) property("keystorePassword") as String else null
+        val keyAliasResolved: String? =
+            System.getenv("KEY_ALIAS")
+                ?: if (project.hasProperty("keystoreAlias")) property("keystoreAlias") as String else null
+        val keyPasswordResolved: String? =
+            System.getenv("KEY_PASSWORD")
+                ?: if (project.hasProperty("keystorePassword")) property("keystorePassword") as String else null
+
+        val hasSigningConfig =
+            keystorePathResolved != null &&
+                keystorePasswordResolved != null &&
+                keyAliasResolved != null &&
+                keyPasswordResolved != null
+
+        if (hasSigningConfig) {
             create("release") {
-                storeFile = file(property("keystoreFile") as String)
-                storePassword = property("keystorePassword") as String
-                keyAlias = property("keystoreAlias") as String
-                keyPassword = property("keystorePassword") as String
+                storeFile = file(keystorePathResolved!!)
+                storePassword = keystorePasswordResolved!!
+                keyAlias = keyAliasResolved!!
+                keyPassword = keyPasswordResolved!!
             }
         }
     }
@@ -108,7 +130,8 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard.cfg")
             testProguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard.cfg", "proguard-tests.cfg")
 
-            if (project.hasProperty("keystorePassword")) {
+            val hasSigningConfig = signingConfigs.findByName("release") != null
+            if (hasSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — SapienTerm</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f0d;
+      --surface:   #141714;
+      --surface2:  #1a1e1a;
+      --border:    #2a302a;
+      --green:     #39ff8a;
+      --green-dim: #1a7a42;
+      --text:      #e2e8e2;
+      --text-muted:#8fa08f;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,15,13,.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--text);
+    }
+    .nav-brand span { color: var(--green); }
+
+    .nav-back {
+      font-size: .875rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: color .15s;
+    }
+    .nav-back:hover { color: var(--text); text-decoration: none; }
+
+    /* Content */
+    .content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 5rem;
+    }
+
+    .page-badge {
+      display: inline-block;
+      background: rgba(57,255,138,.1);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .3em .9em;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin-bottom: .5rem;
+    }
+
+    .updated {
+      font-size: .85rem;
+      color: var(--text-muted);
+      margin-bottom: 3rem;
+    }
+
+    .intro {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green-dim);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-top: 2.5rem;
+      margin-bottom: .9rem;
+      padding-bottom: .4rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    p { margin-bottom: 1rem; color: var(--text-muted); }
+    p strong { color: var(--text); }
+
+    ul {
+      list-style: none;
+      margin-bottom: 1.25rem;
+    }
+    ul li {
+      color: var(--text-muted);
+      padding: .35rem 0 .35rem 1.25rem;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+    ul li:last-child { border-bottom: none; }
+    ul li::before {
+      content: "›";
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-weight: 700;
+    }
+    ul li strong { color: var(--text); }
+
+    /* Permissions table */
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    thead tr {
+      background: var(--surface2);
+    }
+
+    th {
+      text-align: left;
+      padding: .75rem 1rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: .7rem 1rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    td:first-child {
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: .78rem;
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    tr:hover td { background: rgba(255,255,255,.015); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: .83rem;
+      color: var(--text-muted);
+    }
+    footer .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      justify-content: center;
+      margin-bottom: .75rem;
+    }
+
+    @media (max-width: 600px) {
+      .content { padding: 2.5rem 1rem 4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="nav-brand" href="index.html">Sapien<span>Term</span></a>
+    <a class="nav-back" href="index.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to home
+    </a>
+  </nav>
+
+  <div class="content">
+    <div class="page-badge">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 2026-06-09</p>
+
+    <p class="intro">
+      SapienTerm is an open-source Android SSH terminal client developed by
+      <strong>LogicalSapien</strong>. We built it for people who care about privacy — so we
+      designed it to collect <strong>nothing</strong>.
+    </p>
+
+    <h2>Data collection</h2>
+    <p>
+      The app does <strong>not</strong> collect, store remotely, transmit, or share any personal
+      data. There is no analytics SDK, no crash-reporting service, and no network communication
+      initiated by the app itself other than the SSH/Telnet connections you explicitly create.
+    </p>
+
+    <h2>Data stored on your device</h2>
+    <p>The following data is stored <strong>locally on your device only</strong> and never leaves it:</p>
+    <ul>
+      <li><strong>SSH host configurations</strong> — hostnames, ports, usernames, and connection preferences, stored in an encrypted Room database.</li>
+      <li><strong>SSH credentials</strong> — private keys and passwords, protected by Android Keystore encryption. Keys never leave the device in plaintext.</li>
+      <li><strong>App preferences</strong> — theme, font size, and UI settings, stored in Android DataStore.</li>
+    </ul>
+    <p>
+      This data is not backed up to Google's cloud backup service
+      (<code>allowBackup</code> is disabled). You may export an encrypted backup manually via
+      the app's export feature.
+    </p>
+
+    <h2>Permissions</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Permission</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>INTERNET</td>
+            <td>Required to open SSH/Telnet connections</td>
+          </tr>
+          <tr>
+            <td>ACCESS_NETWORK_STATE</td>
+            <td>Detect network changes to reconnect sessions</td>
+          </tr>
+          <tr>
+            <td>FOREGROUND_SERVICE</td>
+            <td>Keep terminal sessions alive when the app is in the background</td>
+          </tr>
+          <tr>
+            <td>FOREGROUND_SERVICE_REMOTE_MESSAGING</td>
+            <td>Required by Android 14+ for the foreground service type</td>
+          </tr>
+          <tr>
+            <td>WAKE_LOCK</td>
+            <td>Keep the CPU awake during active SSH sessions</td>
+          </tr>
+          <tr>
+            <td>VIBRATE</td>
+            <td>Optional haptic feedback for terminal bell events</td>
+          </tr>
+          <tr>
+            <td>POST_NOTIFICATIONS</td>
+            <td>Show a persistent notification for active terminal sessions</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Contact</h2>
+    <p>
+      If you have questions about this policy, open an issue at
+      <a href="https://github.com/LogicalSapien/sapienterm/issues" target="_blank" rel="noopener">
+        github.com/LogicalSapien/sapienterm/issues
+      </a>.
+    </p>
+  </div>
+
+  <footer>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="https://github.com/LogicalSapien/sapienterm" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/LogicalSapien/sapienterm/issues" target="_blank" rel="noopener">Report an Issue</a>
+    </div>
+    <p>© 2026 AEDAtum Ltd / LogicalSapien. Apache 2.0 licensed.</p>
+  </footer>
+
+</body>
+</html>

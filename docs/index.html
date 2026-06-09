@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SapienTerm — A modern SSH terminal for Android</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f0d;
+      --surface:   #141714;
+      --surface2:  #1a1e1a;
+      --border:    #2a302a;
+      --green:     #39ff8a;
+      --green-dim: #1a7a42;
+      --text:      #e2e8e2;
+      --text-muted:#8fa08f;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,15,13,.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--text);
+    }
+    .nav-brand span { color: var(--green); }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: .875rem;
+      color: var(--text-muted);
+      transition: color .15s;
+    }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem 4rem;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(57,255,138,.1);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .3em .9em;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      margin-bottom: .75rem;
+    }
+    .hero h1 span { color: var(--green); }
+
+    .hero-tagline {
+      font-size: clamp(1.05rem, 2.5vw, 1.3rem);
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .9rem;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .75rem 1.5rem;
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-weight: 600;
+      transition: opacity .15s, transform .1s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { opacity: .85; transform: translateY(-1px); text-decoration: none; }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: rgba(57,255,138,.15);
+      border: 1.5px solid var(--green-dim);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      opacity: .6;
+    }
+    .btn-primary:hover { opacity: .6; transform: none; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      color: var(--text);
+    }
+
+    /* ── Terminal mockup ── */
+    .terminal-window {
+      max-width: 680px;
+      margin: 4rem auto 0;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+    }
+    .terminal-titlebar {
+      background: #1e221e;
+      padding: .6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red   { background: #ff5f57; }
+    .dot-yellow{ background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .terminal-hostname {
+      flex: 1;
+      text-align: center;
+      font-size: .75rem;
+      color: var(--text-muted);
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    }
+    .terminal-body {
+      background: #0a0c0a;
+      padding: 1.25rem 1.5rem;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: .83rem;
+      line-height: 1.7;
+      color: #c8d8c8;
+    }
+    .t-prompt { color: var(--green); }
+    .t-cmd    { color: #e2e8e2; }
+    .t-out    { color: #8fa08f; }
+    .t-cursor {
+      display: inline-block;
+      width: .55em;
+      height: 1em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── Features ── */
+    .section {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    .section-label {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: .6rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      margin-bottom: 3rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: border-color .2s, transform .15s;
+    }
+    .feature-card:hover {
+      border-color: var(--green-dim);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+      margin-bottom: .75rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+    }
+
+    .feature-card p {
+      font-size: .875rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    /* ── Tech stack ── */
+    .tech-section {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tech-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .65rem;
+      margin-top: 1.5rem;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .35em .9em;
+      font-size: .8rem;
+      color: var(--text-muted);
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    }
+
+    /* ── Attribution ── */
+    .attribution-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green-dim);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      font-size: .875rem;
+      color: var(--text-muted);
+      margin-top: 2rem;
+    }
+    .attribution-box strong { color: var(--text); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: .83rem;
+      color: var(--text-muted);
+    }
+    footer .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      justify-content: center;
+      margin-bottom: .75rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .hero { padding: 3.5rem 1rem 2.5rem; }
+      .section { padding: 3.5rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-brand">Sapien<span>Term</span></div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#tech">Tech</a></li>
+      <li><a href="privacy.html">Privacy</a></li>
+      <li><a href="https://github.com/LogicalSapien/sapienterm" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">Open Source · Android</div>
+    <h1>Sapien<span>Term</span></h1>
+    <p class="hero-tagline">A modern SSH terminal for Android — fast, secure, and beautifully built.</p>
+    <div class="hero-actions">
+      <span class="btn btn-primary" title="Coming soon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.523 15.341a1.5 1.5 0 0 1-2.121 0l-3.402-3.401-3.402 3.401a1.5 1.5 0 0 1-2.121-2.121l3.401-3.402-3.401-3.402A1.5 1.5 0 0 1 8.598 4.295L12 7.697l3.402-3.402a1.5 1.5 0 0 1 2.121 2.121L14.122 9.818l3.401 3.402a1.5 1.5 0 0 1 0 2.121z"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="position:absolute;opacity:0"><!-- placeholder --></svg>
+        Download on Google Play&ensp;<span style="font-weight:400;opacity:.7;font-size:.82em">(Coming soon)</span>
+      </span>
+      <a class="btn btn-secondary" href="https://github.com/LogicalSapien/sapienterm" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.620.069-.608.069-.608 1.003.071 1.531 1.031 1.531 1.031.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.378.202 2.397.1 2.65.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Terminal mockup -->
+    <div class="terminal-window" aria-hidden="true">
+      <div class="terminal-titlebar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <div class="terminal-hostname">user@myserver — ssh</div>
+      </div>
+      <div class="terminal-body">
+        <div><span class="t-prompt">user@myserver:~$</span> <span class="t-cmd">tmux new-session -s work</span></div>
+        <div class="t-out">[detached (from session work)]</div>
+        <div><span class="t-prompt">user@myserver:~$</span> <span class="t-cmd">htop</span></div>
+        <div class="t-out">&nbsp;&nbsp;Tasks: 142 total,&nbsp;&nbsp;1 running,&nbsp; 141 sleeping</div>
+        <div class="t-out">&nbsp;&nbsp;%Cpu(s):&nbsp; 2.1 us,&nbsp; 0.5 sy,&nbsp; 0.0 ni, 97.2 id</div>
+        <div><span class="t-prompt">user@myserver:~$</span> <span class="t-cursor"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-label">What's included</div>
+    <h2 class="section-title">Everything you need in an SSH client</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⌨️</div>
+        <h3>Full terminal emulation</h3>
+        <p>VT100 / xterm-compatible terminal with multiple simultaneous sessions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔑</div>
+        <h3>Credentials vault</h3>
+        <p>Store SSH keys and passwords with Android Keystore encryption. Keys never leave your device in plaintext.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Quick Commands</h3>
+        <p>Save, organise, and fire off commands instantly from a toolbar above the keyboard.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>SSH key management</h3>
+        <p>Generate RSA 2048/4096 and Ed25519 keys, or import from file. Link keys to connections for auto-auth.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔁</div>
+        <h3>Port forwarding</h3>
+        <p>Local, remote, and dynamic (SOCKS5) port forwarding support built in.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💾</div>
+        <h3>Encrypted backup</h3>
+        <p>Export and import all your data with an optional encrypted <code>.sapienterm</code> backup file.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Host key verification</h3>
+        <p>Fingerprint display and strict host key checking protect you from MITM attacks.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3>Material Design 3 UI</h3>
+        <p>Card-based connection management with status indicators, dark and light themes.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Keep-alive &amp; reconnect</h3>
+        <p>Configurable keep-alive pings and network-change reconnect keep sessions stable on mobile.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech stack -->
+  <section class="tech-section">
+    <div class="section" id="tech">
+      <div class="section-label">Under the hood</div>
+      <h2 class="section-title">Built on solid foundations</h2>
+      <div class="tech-chips">
+        <span class="chip">Kotlin</span>
+        <span class="chip">Jetpack Compose</span>
+        <span class="chip">Material Design 3</span>
+        <span class="chip">Hilt</span>
+        <span class="chip">Room</span>
+        <span class="chip">Android Keystore</span>
+        <span class="chip">sshlib</span>
+        <span class="chip">termlib</span>
+        <span class="chip">Android 8.0+</span>
+        <span class="chip">Apache 2.0</span>
+      </div>
+      <div class="attribution-box">
+        <strong>Built on ConnectBot.</strong>
+        SapienTerm is built on the battle-tested open-source foundations of
+        <a href="https://github.com/connectbot/connectbot" target="_blank" rel="noopener">ConnectBot</a>
+        (Apache 2.0), using its
+        <a href="https://github.com/connectbot/sshlib" target="_blank" rel="noopener">sshlib</a>
+        SSH engine and termlib terminal emulator. We gratefully acknowledge the ConnectBot contributors.
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="https://github.com/LogicalSapien/sapienterm" target="_blank" rel="noopener">GitHub</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="https://github.com/LogicalSapien/sapienterm/issues" target="_blank" rel="noopener">Report an Issue</a>
+    </div>
+    <p>© 2026 AEDAtum Ltd / LogicalSapien. Apache 2.0 licensed.</p>
+  </footer>
+
+</body>
+</html>
