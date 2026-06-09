@@ -119,16 +119,16 @@ jobs:
             echo "${GITHUB_TAG}" > tag.txt
             echo "${GITHUB_TAG}: ${GITHUB_TITLE}" > release-title.txt
           fi
-          cp ./app/build/outputs/apk/oss/release/app-oss-release-unsigned.apk ConnectBot-${GITHUB_TAG}-oss-unsigned.apk
-          cp ./app/build/outputs/apk/google/release/app-google-release-unsigned.apk ConnectBot-${GITHUB_TAG}-google-unsigned.apk
-          cp ./app/build/outputs/bundle/googleRelease/app-google-release.aab ConnectBot-${GITHUB_TAG}-google-unsigned.aab
-          cp ./app/build/outputs/bundle/ossRelease/app-oss-release.aab ConnectBot-${GITHUB_TAG}-oss-unsigned.aab
-          cp ./app/build/outputs/native-debug-symbols/googleRelease/native-debug-symbols.zip ConnectBot-${GITHUB_TAG}-google.native-debug-symbols.zip
-          cp ./app/build/outputs/native-debug-symbols/ossRelease/native-debug-symbols.zip ConnectBot-${GITHUB_TAG}-oss.native-debug-symbols.zip
-          cp ./app/build/outputs/mapping/googleRelease/mapping.txt ConnectBot-${GITHUB_TAG}-google.mapping.txt
-          cp ./app/build/outputs/mapping/ossRelease/mapping.txt ConnectBot-${GITHUB_TAG}-oss.mapping.txt
+          cp ./app/build/outputs/apk/oss/release/app-oss-release-unsigned.apk SapienTerm-${GITHUB_TAG}-oss-unsigned.apk
+          cp ./app/build/outputs/apk/google/release/app-google-release-unsigned.apk SapienTerm-${GITHUB_TAG}-google-unsigned.apk
+          cp ./app/build/outputs/bundle/googleRelease/app-google-release.aab SapienTerm-${GITHUB_TAG}-google-unsigned.aab
+          cp ./app/build/outputs/bundle/ossRelease/app-oss-release.aab SapienTerm-${GITHUB_TAG}-oss-unsigned.aab
+          cp ./app/build/outputs/native-debug-symbols/googleRelease/native-debug-symbols.zip SapienTerm-${GITHUB_TAG}-google.native-debug-symbols.zip
+          cp ./app/build/outputs/native-debug-symbols/ossRelease/native-debug-symbols.zip SapienTerm-${GITHUB_TAG}-oss.native-debug-symbols.zip
+          cp ./app/build/outputs/mapping/googleRelease/mapping.txt SapienTerm-${GITHUB_TAG}-google.mapping.txt
+          cp ./app/build/outputs/mapping/ossRelease/mapping.txt SapienTerm-${GITHUB_TAG}-oss.mapping.txt
           zstd *.mapping.txt
-  
+
       - name: Store artifacts for upload
         if: ${{ github.event_name == 'push' }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -137,62 +137,8 @@ jobs:
           path: |
             release-title.txt
             tag.txt
-            ConnectBot-*-unsigned.apk
-            ConnectBot-*-unsigned.aab
-            ConnectBot-*.native-debug-symbols.zip
-            ConnectBot-*.mapping.txt.zst
+            SapienTerm-*-unsigned.apk
+            SapienTerm-*-unsigned.aab
+            SapienTerm-*.native-debug-symbols.zip
+            SapienTerm-*.mapping.txt.zst
 
-  upload:
-    name: Upload to GitHub releases
-    needs: build
-    if: ${{ (github.event_name == 'push') && (github.repository == 'connectbot/connectbot') && ((github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')) }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download artifacts from previous job
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: apk
-
-      - name: Set release name
-        id: name
-        run: |
-          echo "RELEASE_TITLE=$(cat release-title.txt)" >> "$GITHUB_OUTPUT"
-          echo "GITHUB_TAG=$(cat tag.txt)" >> "$GITHUB_OUTPUT"
-
-      - name: Upload release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
-        with:
-          body: "Untested build"
-          draft: true
-          tag_name: ${{ steps.name.outputs.GITHUB_TAG }}
-          name: ${{ steps.name.outputs.RELEASE_TITLE }}
-          generate_release_notes: true
-          files: |
-            ConnectBot-*-unsigned.apk
-            ConnectBot-*-unsigned.aab
-            ConnectBot-*.native-debug-symbols.zip
-            ConnectBot-*.mapping.txt.zst
-
-  signing:
-    name: Trigger remote signing
-    needs: upload
-    if: ${{ (github.event_name == 'push') && (github.repository == 'connectbot/connectbot') && ((github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')) }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download artifacts from previous job
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: apk
-
-      - name: Set release name
-        id: name
-        run: |
-          echo "GITHUB_TAG=$(cat tag.txt)" >> "$GITHUB_OUTPUT"
-
-      - name: Call remote signer
-        uses: distributhor/workflow-webhook@2381f0e9c7b6bf061fb1405bd0804b8706116369 # v3.0.8
-        with:
-          webhook_url: ${{ secrets.SIGNER_WEBHOOK_URL }}
-          data: '{"tag_id": "${{ steps.name.outputs.GITHUB_TAG }}"}'
