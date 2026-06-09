@@ -5,17 +5,16 @@
 #   ./scripts/release.sh v1.2.3
 #
 # Prerequisites:
-#   - KEYSTORE_PATH (or keystoreFile Gradle property) pointing to a valid .jks file
-#   - KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD env vars set
-#     OR the corresponding keystorePassword / keystoreAlias Gradle properties in
-#     ~/.gradle/gradle.properties
+#   - Doppler CLI installed and authenticated (doppler login)
+#   - Doppler project "apps", config "android" has SAPIENTERM_SECRETS populated
 #   - Git working tree is clean and on the branch you want to tag
-#   - Google Play credentials configured if you want to publish manually
 #
 # What this script does:
-#   1. Validates inputs and keystore presence
-#   2. Builds a signed googleRelease AAB
-#   3. Creates and pushes the git tag  →  triggers the GitHub Actions release workflow
+#   1. Pulls signing secrets from Doppler at runtime (nothing stored locally)
+#   2. Writes a temporary keystore from the base64 secret
+#   3. Builds a signed googleRelease AAB
+#   4. Creates and pushes the git tag → triggers the GitHub Actions release workflow
+#   5. Cleans up the temporary keystore
 
 set -euo pipefail
 
@@ -30,8 +29,6 @@ die()    { red "ERROR: $*"; exit 1; }
 [[ $# -eq 1 ]] || die "Usage: $0 <version-tag>  e.g.  $0 v1.2.3"
 
 VERSION="$1"
-
-# Validate semver tag format
 [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
   || die "Version tag must match v<major>.<minor>.<patch> (got: $VERSION)"
 
@@ -55,26 +52,27 @@ if git rev-parse "$VERSION" >/dev/null 2>&1; then
   die "Tag $VERSION already exists locally. Delete it first: git tag -d $VERSION"
 fi
 
-# ── keystore check ────────────────────────────────────────────────────────────
-# Resolve keystore path: env var → Gradle property
-KEYSTORE_PATH="${KEYSTORE_PATH:-}"
-if [[ -z "$KEYSTORE_PATH" ]]; then
-  GRADLE_PROPS="$HOME/.gradle/gradle.properties"
-  if [[ -f "$GRADLE_PROPS" ]]; then
-    KEYSTORE_PATH="$(grep -E '^keystoreFile\s*=' "$GRADLE_PROPS" | sed 's/^keystoreFile\s*=\s*//' | tr -d '[:space:]')" || true
-  fi
-fi
+# ── pull secrets from Doppler ─────────────────────────────────────────────────
+bold "==> Fetching signing secrets from Doppler (apps/android)…"
+command -v doppler >/dev/null 2>&1 || die "doppler CLI not found. Install from https://docs.doppler.com/docs/cli"
+command -v jq      >/dev/null 2>&1 || die "jq not found. Install with: brew install jq"
 
-[[ -n "$KEYSTORE_PATH" ]] \
-  || die "No keystore found. Set KEYSTORE_PATH env var or keystoreFile in ~/.gradle/gradle.properties"
-[[ -f "$KEYSTORE_PATH" ]] \
-  || die "Keystore file not found at: $KEYSTORE_PATH"
+SECRETS_JSON="$(doppler secrets get SAPIENTERM_SECRETS --project apps --config android --plain)"
 
-green "✓ Keystore found: $KEYSTORE_PATH"
+KEYSTORE_B64="$(echo "$SECRETS_JSON"   | jq -r '.keystore_base64')"
+KEYSTORE_PASSWORD="$(echo "$SECRETS_JSON" | jq -r '.keystore_password')"
+KEY_ALIAS="$(echo "$SECRETS_JSON"      | jq -r '.key_alias')"
+KEY_PASSWORD="$(echo "$SECRETS_JSON"   | jq -r '.key_password')"
+
+# ── write temporary keystore ──────────────────────────────────────────────────
+KEYSTORE_PATH="$(mktemp /tmp/sapienterm-release-XXXXXX.jks)"
+trap 'rm -f "$KEYSTORE_PATH"' EXIT
+echo "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
+green "✓ Keystore written to temp file (cleaned up on exit)"
 
 # ── build ─────────────────────────────────────────────────────────────────────
 bold "==> Building signed release AAB (bundleGoogleRelease)…"
-export KEYSTORE_PATH
+export KEYSTORE_PATH KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD
 ./gradlew bundleGoogleRelease --no-daemon
 
 AAB_PATTERN="app/build/outputs/bundle/googleRelease/*.aab"
@@ -94,8 +92,8 @@ echo ""
 bold "Next steps:"
 echo "  1. Monitor the Actions run:"
 echo "     https://github.com/$(git remote get-url origin | sed 's|.*github.com[:/]\(.*\)\.git|\1|')/actions"
-echo "  2. Once the workflow completes, check the Play Store internal track:"
+echo "  2. Once complete, check the Play Store internal track:"
 echo "     https://play.google.com/console"
 echo "  3. Promote from internal → production when ready."
 echo ""
-green "Done! 🚀"
+green "Done!"
