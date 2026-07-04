@@ -17,6 +17,7 @@
 
 package com.logicalsapien.sapienterm.ui.screens.console
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,10 +29,13 @@ import com.logicalsapien.sapienterm.data.entity.CommandHistory
 import com.logicalsapien.sapienterm.data.entity.PromptTemplate
 import com.logicalsapien.sapienterm.data.entity.QuickCommand
 import com.logicalsapien.sapienterm.di.CoroutineDispatchers
+import com.logicalsapien.sapienterm.service.ServiceError
 import com.logicalsapien.sapienterm.service.TerminalBridge
 import com.logicalsapien.sapienterm.service.TerminalManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.logicalsapien.sapienterm.util.CliPromptDetector
 import com.logicalsapien.sapienterm.util.DetectedPrompt
+import com.logicalsapien.sapienterm.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -73,6 +77,7 @@ class ConsoleViewModel @Inject constructor(
     private val commandHistoryRepository: CommandHistoryRepository,
     private val customBottomBarLayoutStore: CustomBottomBarLayoutStore,
     private val promptTemplateRepository: PromptTemplateRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val promptTemplates: StateFlow<List<PromptTemplate>> = promptTemplateRepository
@@ -169,6 +174,14 @@ class ConsoleViewModel @Inject constructor(
                 }
             }
 
+            // Propagate connection/service errors to the UI
+            viewModelScope.launch {
+                manager.serviceErrors.collect { error ->
+                    val errorMessage = formatServiceError(error)
+                    _uiState.update { it.copy(isLoading = false, error = errorMessage) }
+                }
+            }
+
             // First, try to find or create the bridge for this host
             if (hostId != -1L) {
                 viewModelScope.launch {
@@ -176,6 +189,28 @@ class ConsoleViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun formatServiceError(error: ServiceError): String = when (error) {
+        is ServiceError.KeyLoadFailed ->
+            context.getString(R.string.error_key_load_failed, error.keyName, error.reason)
+        is ServiceError.ConnectionFailed ->
+            context.getString(
+                R.string.error_connection_failed,
+                error.hostNickname,
+                error.hostname,
+                error.reason
+            )
+        is ServiceError.PortForwardLoadFailed ->
+            context.getString(
+                R.string.error_port_forward_load_failed,
+                error.hostNickname,
+                error.reason
+            )
+        is ServiceError.HostSaveFailed ->
+            context.getString(R.string.error_host_save_failed, error.hostNickname, error.reason)
+        is ServiceError.ColorSchemeLoadFailed ->
+            context.getString(R.string.error_color_scheme_load_failed, error.reason)
     }
 
     private fun subscribeToActiveBridgeBells(bridges: List<TerminalBridge>) {
@@ -322,7 +357,8 @@ class ConsoleViewModel @Inject constructor(
                 bridges = bridges,
                 currentBridgeIndex = newIndex,
                 isLoading = if (targetBridgeAvailable) false else it.isLoading,
-                error = null
+                // Only clear error when the bridge is available — preserve connection errors
+                error = if (targetBridgeAvailable) null else it.error
             )
         }
         val selectedBridge = _uiState.value.bridges.getOrNull(_uiState.value.currentBridgeIndex)
