@@ -54,5 +54,22 @@ enum class TerminalBottomBarPreset(val prefValue: String) {
          * @param hostOverride Per-connection value from `hosts.bottom_bar_preset_override`; `null` or blank uses [globalPrefValue].
          */
         fun resolvedSelection(hostOverride: String?, globalPrefValue: String?): Pair<TerminalBottomBarPreset, String?> = parseStored(resolvedRaw(hostOverride, globalPrefValue))
+
+        /**
+         * Default shortcut strip shown when no custom layout is active.
+         * Covers the keys every SSH user reaches for most: tab-completion, interrupt,
+         * escape, arrow navigation, and enter. Ctrl is a sticky modifier toggle.
+         */
+        val DEFAULT_STRIP: List<BottomBarShortcutAction> = listOf(
+            BottomBarShortcutAction.TAB,
+            BottomBarShortcutAction.CTRL_TOGGLE,
+            BottomBarShortcutAction.ESC,
+            BottomBarShortcutAction.ARROW_UP,
+            BottomBarShortcutAction.ARROW_DOWN,
+            BottomBarShortcutAction.ARROW_LEFT,
+            BottomBarShortcutAction.ARROW_RIGHT,
+            BottomBarShortcutAction.CTRL_C,
+            BottomBarShortcutAction.ENTER
+        )
     }
 }

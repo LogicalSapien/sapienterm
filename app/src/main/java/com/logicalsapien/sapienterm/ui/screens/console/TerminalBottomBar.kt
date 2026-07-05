@@ -313,10 +313,12 @@ fun TerminalBottomBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    // Only shortcuts from the optional custom layout. Everything else (Cmds, arrows, Enter, Ctrl, …)
-                    // is opened from the pinned More (⋯) panel. MORE_KEYS is always pinned here, so skip in strip.
-                    if (customShortcutStrip != null) {
-                        for (action in customShortcutStrip) {
+                    // Shortcuts in the strip: use the custom layout when set, otherwise fall back to the
+                    // built-in SSH defaults so new users always see something useful. MORE_KEYS opens the
+                    // full panel and is always accessible via ⋯, so skip it in the strip itself.
+                    val activeStrip = customShortcutStrip ?: TerminalBottomBarPreset.DEFAULT_STRIP
+                    run {
+                        for (action in activeStrip) {
                             if (action == BottomBarShortcutAction.MORE_KEYS) continue
                             IconButton(
                                 modifier = Modifier.size(BOTTOM_BAR_HEIGHT_DP.dp),
