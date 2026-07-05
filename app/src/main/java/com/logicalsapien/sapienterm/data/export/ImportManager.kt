@@ -18,14 +18,18 @@
 package com.logicalsapien.sapienterm.data.export
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import com.logicalsapien.sapienterm.data.ConnectionGroupRepository
 import com.logicalsapien.sapienterm.data.CredentialRepository
 import com.logicalsapien.sapienterm.data.HostRepository
+import com.logicalsapien.sapienterm.data.ProfileRepository
 import com.logicalsapien.sapienterm.data.QuickCommandRepository
 import com.logicalsapien.sapienterm.data.entity.ConnectionGroup
 import com.logicalsapien.sapienterm.data.entity.CredentialType
 import com.logicalsapien.sapienterm.data.entity.Host
+import com.logicalsapien.sapienterm.data.entity.PortForward
+import com.logicalsapien.sapienterm.data.entity.Profile
 import com.logicalsapien.sapienterm.data.entity.QuickCommand
 import com.logicalsapien.sapienterm.di.CoroutineDispatchers
 import kotlinx.coroutines.withContext
@@ -51,7 +55,9 @@ data class ImportResult(
     val connectionsImported: Int = 0,
     val quickCommandsImported: Int = 0,
     val credentialsImported: Int = 0,
-    val groupsImported: Int = 0
+    val groupsImported: Int = 0,
+    val profilesImported: Int = 0,
+    val preferencesRestored: Boolean = false
 )
 
 /**
@@ -67,6 +73,8 @@ class ImportManager(
     private val quickCommandRepository: QuickCommandRepository,
     private val credentialRepository: CredentialRepository,
     private val connectionGroupRepository: ConnectionGroupRepository,
+    private val profileRepository: ProfileRepository,
+    private val prefs: SharedPreferences,
     private val dispatchers: CoroutineDispatchers
 ) {
 
@@ -202,16 +210,20 @@ class ImportManager(
             deleteExistingData(exportData)
         }
 
+        val profilesImported = importProfiles(exportData.profiles, mode)
         val groupsImported = importGroups(exportData.groups, mode)
         val credentialsImported = importCredentials(exportData.credentials, mode)
         val connectionsImported = importConnections(exportData.connections, mode)
         val quickCommandsImported = importQuickCommands(exportData.quickCommands, mode)
+        val preferencesRestored = importPreferences(exportData.preferences)
 
         return ImportResult(
             connectionsImported = connectionsImported,
             quickCommandsImported = quickCommandsImported,
             credentialsImported = credentialsImported,
-            groupsImported = groupsImported
+            groupsImported = groupsImported,
+            profilesImported = profilesImported,
+            preferencesRestored = preferencesRestored
         )
     }
 
@@ -231,6 +243,9 @@ class ImportManager(
         }
         if (exportData.credentials != null) {
             credentialRepository.deleteAll()
+        }
+        if (exportData.profiles != null) {
+            profileRepository.getAll().forEach { profileRepository.delete(it.id) }
         }
     }
 
@@ -294,6 +309,8 @@ class ImportManager(
             .associateBy({ it.name }, { it.id })
         val credentialIdByLabel = credentialRepository.getAll()
             .associateBy({ it.label }, { it.id })
+        val profileIdByName = profileRepository.getAll()
+            .associateBy({ it.name }, { it.id })
 
         var count = 0
         for (conn in connections) {
@@ -321,16 +338,96 @@ class ImportManager(
                 useCtrlAltAsMetaKey = conn.useCtrlAltAsMetaKey,
                 ipVersion = conn.ipVersion,
                 groupId = conn.groupName?.let { groupIdByName[it] },
-                credentialId = conn.credentialLabel?.let { credentialIdByLabel[it] }
+                credentialId = conn.credentialLabel?.let { credentialIdByLabel[it] },
+                pinned = conn.pinned,
+                profileId = conn.profileName?.let { profileIdByName[it] }
             )
             try {
-                hostRepository.saveHost(host)
+                val savedHost = hostRepository.saveHost(host)
+                conn.portForwards.forEach { pf ->
+                    try {
+                        hostRepository.savePortForward(
+                            PortForward(
+                                hostId = savedHost.id,
+                                nickname = pf.nickname,
+                                type = pf.type,
+                                sourcePort = pf.sourcePort,
+                                destAddr = pf.destAddr,
+                                destPort = pf.destPort
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Timber.w(e, "Failed to import port forward '${pf.nickname}' for ${conn.name}")
+                    }
+                }
                 count++
             } catch (e: Exception) {
                 Timber.w(e, "Failed to import connection: ${conn.name}")
             }
         }
         return count
+    }
+
+    /**
+     * Import terminal profiles, skipping duplicates in MERGE mode.
+     * Duplicates are detected by name.
+     */
+    private suspend fun importProfiles(
+        profiles: List<ExportProfile>?,
+        mode: ImportMode
+    ): Int {
+        if (profiles.isNullOrEmpty()) return 0
+
+        val existingNames = if (mode == ImportMode.MERGE) {
+            profileRepository.getAll().map { it.name }.toSet()
+        } else {
+            emptySet()
+        }
+
+        var count = 0
+        for (profile in profiles) {
+            if (profile.name == "Default") continue  // never overwrite the built-in default
+            if (mode == ImportMode.MERGE && profile.name in existingNames) {
+                Timber.d("Skipping duplicate profile: ${profile.name}")
+                continue
+            }
+            try {
+                profileRepository.save(
+                    Profile(
+                        name = profile.name,
+                        iconColor = profile.iconColor,
+                        fontFamily = profile.fontFamily,
+                        fontSize = profile.fontSize,
+                        delKey = profile.delKey,
+                        encoding = profile.encoding,
+                        emulation = profile.emulation,
+                        forceSizeRows = profile.forceSizeRows,
+                        forceSizeColumns = profile.forceSizeColumns
+                    )
+                )
+                count++
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to import profile: ${profile.name}")
+            }
+        }
+        return count
+    }
+
+    /**
+     * Restore exported app preferences. Only keys in [ExportPreferences.EXPORTABLE_KEYS] are applied.
+     */
+    private fun importPreferences(preferences: ExportPreferences?): Boolean {
+        if (preferences == null) return false
+        val editor = prefs.edit()
+        var anyApplied = false
+        preferences.values
+            .filter { (key, _) -> key in ExportPreferences.EXPORTABLE_KEYS }
+            .forEach { (key, value) ->
+                editor.putString(key, value)
+                anyApplied = true
+            }
+        if (anyApplied) editor.apply()
+        return anyApplied
     }
 
     /**

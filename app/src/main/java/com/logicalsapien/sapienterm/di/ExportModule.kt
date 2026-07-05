@@ -22,6 +22,7 @@ import android.content.SharedPreferences
 import com.logicalsapien.sapienterm.data.ConnectionGroupRepository
 import com.logicalsapien.sapienterm.data.CredentialRepository
 import com.logicalsapien.sapienterm.data.HostRepository
+import com.logicalsapien.sapienterm.data.ProfileRepository
 import com.logicalsapien.sapienterm.data.QuickCommandRepository
 import com.logicalsapien.sapienterm.data.export.AutoBackupManager
 import com.logicalsapien.sapienterm.data.export.ExportManager
@@ -48,6 +49,8 @@ object ExportModule {
         quickCommandRepository: QuickCommandRepository,
         credentialRepository: CredentialRepository,
         connectionGroupRepository: ConnectionGroupRepository,
+        profileRepository: ProfileRepository,
+        prefs: SharedPreferences,
         dispatchers: CoroutineDispatchers
     ): ExportManager = ExportManager(
         context,
@@ -55,6 +58,8 @@ object ExportModule {
         quickCommandRepository,
         credentialRepository,
         connectionGroupRepository,
+        profileRepository,
+        prefs,
         dispatchers
     )
 
@@ -66,6 +71,8 @@ object ExportModule {
         quickCommandRepository: QuickCommandRepository,
         credentialRepository: CredentialRepository,
         connectionGroupRepository: ConnectionGroupRepository,
+        profileRepository: ProfileRepository,
+        prefs: SharedPreferences,
         dispatchers: CoroutineDispatchers
     ): ImportManager = ImportManager(
         context,
@@ -73,6 +80,8 @@ object ExportModule {
         quickCommandRepository,
         credentialRepository,
         connectionGroupRepository,
+        profileRepository,
+        prefs,
         dispatchers
     )
 

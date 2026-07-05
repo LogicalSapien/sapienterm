@@ -299,8 +299,8 @@ fun SettingsScreen(
     if (showExportDialog) {
         ExportDialog(
             isExporting = uiState.exportInProgress,
-            onExport = { connections, quickCommands, credentials, passphrase ->
-                viewModel.exportData(connections, quickCommands, credentials, passphrase)
+            onExport = { connections, quickCommands, credentials, passphrase, profiles, preferences ->
+                viewModel.exportData(connections, quickCommands, credentials, passphrase, profiles, preferences)
             },
             onDismiss = { showExportDialog = false }
         )

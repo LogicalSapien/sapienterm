@@ -626,7 +626,9 @@ class SettingsViewModel @Inject constructor(
         includeConnections: Boolean,
         includeQuickCommands: Boolean,
         includeCredentials: Boolean,
-        passphrase: String?
+        passphrase: String?,
+        includeProfiles: Boolean = true,
+        includePreferences: Boolean = true
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(exportInProgress = true) }
@@ -635,7 +637,9 @@ class SettingsViewModel @Inject constructor(
                     includeConnections = includeConnections,
                     includeQuickCommands = includeQuickCommands,
                     includeCredentials = includeCredentials,
-                    passphrase = passphrase
+                    passphrase = passphrase,
+                    includeProfiles = includeProfiles,
+                    includePreferences = includePreferences
                 )
                 _events.send(SettingsEvent.ExportSuccess(uri))
             } catch (e: Exception) {
