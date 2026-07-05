@@ -19,6 +19,7 @@ package com.logicalsapien.sapienterm.data.export
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -27,6 +28,7 @@ import androidx.core.content.FileProvider
 import com.logicalsapien.sapienterm.data.ConnectionGroupRepository
 import com.logicalsapien.sapienterm.data.CredentialRepository
 import com.logicalsapien.sapienterm.data.HostRepository
+import com.logicalsapien.sapienterm.data.ProfileRepository
 import com.logicalsapien.sapienterm.data.QuickCommandRepository
 import com.logicalsapien.sapienterm.data.entity.CredentialType
 import com.logicalsapien.sapienterm.di.CoroutineDispatchers
@@ -50,6 +52,8 @@ class ExportManager(
     private val quickCommandRepository: QuickCommandRepository,
     private val credentialRepository: CredentialRepository,
     private val connectionGroupRepository: ConnectionGroupRepository,
+    private val profileRepository: ProfileRepository,
+    private val prefs: SharedPreferences,
     private val dispatchers: CoroutineDispatchers
 ) {
 
@@ -71,7 +75,9 @@ class ExportManager(
         includeConnections: Boolean,
         includeQuickCommands: Boolean,
         includeCredentials: Boolean,
-        passphrase: String?
+        passphrase: String?,
+        includeProfiles: Boolean = true,
+        includePreferences: Boolean = true
     ): Uri = withContext(dispatchers.io) {
         if (includeCredentials && passphrase.isNullOrEmpty()) {
             throw IllegalArgumentException("Passphrase is required when exporting credentials")
@@ -81,7 +87,9 @@ class ExportManager(
             val exportData = buildExportData(
                 includeConnections,
                 includeQuickCommands,
-                includeCredentials
+                includeCredentials,
+                includeProfiles,
+                includePreferences
             )
 
             val jsonString = exportData.toJson().toString(2)
@@ -116,7 +124,9 @@ class ExportManager(
     private suspend fun buildExportData(
         includeConnections: Boolean,
         includeQuickCommands: Boolean,
-        includeCredentials: Boolean
+        includeCredentials: Boolean,
+        includeProfiles: Boolean,
+        includePreferences: Boolean
     ): ExportData {
         val allGroups = connectionGroupRepository.getAll()
         val groupNameById = allGroups.associateBy({ it.id }, { it.name })
@@ -124,8 +134,20 @@ class ExportManager(
         val allCredentials = credentialRepository.getAll()
         val credentialLabelById = allCredentials.associateBy({ it.id }, { it.label })
 
+        val allProfiles = profileRepository.getAll()
+        val profileNameById = allProfiles.associateBy({ it.id }, { it.name })
+
         val connections = if (includeConnections) {
             hostRepository.getHosts().map { host ->
+                val portForwards = hostRepository.getPortForwardsForHost(host.id).map { pf ->
+                    ExportPortForward(
+                        nickname = pf.nickname,
+                        type = pf.type,
+                        sourcePort = pf.sourcePort,
+                        destAddr = pf.destAddr,
+                        destPort = pf.destPort
+                    )
+                }
                 ExportConnection(
                     name = host.nickname,
                     hostname = host.hostname,
@@ -144,7 +166,10 @@ class ExportManager(
                     useCtrlAltAsMetaKey = host.useCtrlAltAsMetaKey,
                     ipVersion = host.ipVersion,
                     groupName = host.groupId?.let { groupNameById[it] },
-                    credentialLabel = host.credentialId?.let { credentialLabelById[it] }
+                    credentialLabel = host.credentialId?.let { credentialLabelById[it] },
+                    pinned = host.pinned,
+                    profileName = host.profileId?.let { profileNameById[it] },
+                    portForwards = portForwards
                 )
             }
         } else {
@@ -159,6 +184,36 @@ class ExportManager(
                     sortOrder = group.sortOrder
                 )
             }
+        } else {
+            null
+        }
+
+        val profiles = if (includeProfiles && allProfiles.isNotEmpty()) {
+            allProfiles.map { profile ->
+                ExportProfile(
+                    name = profile.name,
+                    iconColor = profile.iconColor,
+                    fontFamily = profile.fontFamily,
+                    fontSize = profile.fontSize,
+                    delKey = profile.delKey,
+                    encoding = profile.encoding,
+                    emulation = profile.emulation,
+                    forceSizeRows = profile.forceSizeRows,
+                    forceSizeColumns = profile.forceSizeColumns
+                )
+            }
+        } else {
+            null
+        }
+
+        val preferences = if (includePreferences) {
+            val exportedValues = ExportPreferences.EXPORTABLE_KEYS
+                .filter { prefs.contains(it) }
+                .associateWith { key ->
+                    prefs.all?.get(key)?.toString() ?: ""
+                }
+                .filter { it.value.isNotEmpty() }
+            if (exportedValues.isNotEmpty()) ExportPreferences(exportedValues) else null
         } else {
             null
         }
@@ -214,7 +269,9 @@ class ExportManager(
             connections = connections,
             quickCommands = quickCommands,
             credentials = credentials,
-            groups = groups
+            groups = groups,
+            profiles = profiles,
+            preferences = preferences
         )
     }
 

@@ -47,16 +47,18 @@ import com.logicalsapien.sapienterm.R
 @Composable
 fun ExportDialog(
     isExporting: Boolean,
-    onExport: (includeConnections: Boolean, includeQuickCommands: Boolean, includeCredentials: Boolean, passphrase: String?) -> Unit,
+    onExport: (includeConnections: Boolean, includeQuickCommands: Boolean, includeCredentials: Boolean, passphrase: String?, includeProfiles: Boolean, includePreferences: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     var includeConnections by remember { mutableStateOf(true) }
     var includeQuickCommands by remember { mutableStateOf(true) }
     var includeCredentials by remember { mutableStateOf(true) }
+    var includeProfiles by remember { mutableStateOf(true) }
+    var includePreferences by remember { mutableStateOf(true) }
     var passphrase by remember { mutableStateOf("") }
     var confirmPassphrase by remember { mutableStateOf("") }
 
-    val nothingSelected = !includeConnections && !includeQuickCommands && !includeCredentials
+    val nothingSelected = !includeConnections && !includeQuickCommands && !includeCredentials && !includeProfiles && !includePreferences
     val passphraseMismatch = includeCredentials && passphrase != confirmPassphrase
     val passphraseEmpty = includeCredentials && passphrase.isEmpty()
     val exportEnabled = !nothingSelected && !passphraseMismatch && !passphraseEmpty && !isExporting
@@ -87,6 +89,18 @@ fun ExportDialog(
                     label = stringResource(R.string.export_include_credentials),
                     checked = includeCredentials,
                     onCheckedChange = { includeCredentials = it },
+                    enabled = !isExporting
+                )
+                CheckboxRow(
+                    label = stringResource(R.string.export_include_profiles),
+                    checked = includeProfiles,
+                    onCheckedChange = { includeProfiles = it },
+                    enabled = !isExporting
+                )
+                CheckboxRow(
+                    label = stringResource(R.string.export_include_preferences),
+                    checked = includePreferences,
+                    onCheckedChange = { includePreferences = it },
                     enabled = !isExporting
                 )
 
@@ -151,7 +165,9 @@ fun ExportDialog(
                         includeConnections,
                         includeQuickCommands,
                         includeCredentials,
-                        if (includeCredentials) passphrase else null
+                        if (includeCredentials) passphrase else null,
+                        includeProfiles,
+                        includePreferences
                     )
                 },
                 enabled = exportEnabled

@@ -31,13 +31,15 @@ import org.json.JSONObject
  * @property credentials Exported credentials (with plaintext secrets)
  */
 data class ExportData(
-    val version: Int = 2,
+    val version: Int = 3,
     val exportDate: String,
     val app: String = "SapienTerm",
     val connections: List<ExportConnection>? = null,
     val quickCommands: List<ExportQuickCommand>? = null,
     val credentials: List<ExportCredential>? = null,
-    val groups: List<ExportConnectionGroup>? = null
+    val groups: List<ExportConnectionGroup>? = null,
+    val profiles: List<ExportProfile>? = null,
+    val preferences: ExportPreferences? = null
 ) {
     fun toJson(): JSONObject {
         val json = JSONObject()
@@ -69,6 +71,14 @@ data class ExportData(
             json.put("groups", arr)
         }
 
+        profiles?.let { list ->
+            val arr = JSONArray()
+            list.forEach { arr.put(it.toJson()) }
+            json.put("profiles", arr)
+        }
+
+        preferences?.let { json.put("preferences", it.toJson()) }
+
         return json
     }
 
@@ -86,6 +96,10 @@ data class ExportData(
             val groups = json.optJSONArray("groups")?.let { arr ->
                 (0 until arr.length()).map { ExportConnectionGroup.fromJson(arr.getJSONObject(it)) }
             }
+            val profiles = json.optJSONArray("profiles")?.let { arr ->
+                (0 until arr.length()).map { ExportProfile.fromJson(arr.getJSONObject(it)) }
+            }
+            val preferences = json.optJSONObject("preferences")?.let { ExportPreferences.fromJson(it) }
             return ExportData(
                 version = json.optInt("version", 1),
                 exportDate = json.optString("exportDate", ""),
@@ -93,7 +107,9 @@ data class ExportData(
                 connections = connections,
                 quickCommands = quickCommands,
                 credentials = credentials,
-                groups = groups
+                groups = groups,
+                profiles = profiles,
+                preferences = preferences
             )
         }
     }
@@ -121,7 +137,10 @@ data class ExportConnection(
     val useCtrlAltAsMetaKey: Boolean,
     val ipVersion: String,
     val groupName: String? = null,
-    val credentialLabel: String? = null
+    val credentialLabel: String? = null,
+    val pinned: Boolean = false,
+    val profileName: String? = null,
+    val portForwards: List<ExportPortForward> = emptyList()
 ) {
     fun toJson(): JSONObject {
         val json = JSONObject()
@@ -143,6 +162,13 @@ data class ExportConnection(
         json.put("ipVersion", ipVersion)
         json.put("groupName", groupName ?: JSONObject.NULL)
         json.put("credentialLabel", credentialLabel ?: JSONObject.NULL)
+        json.put("pinned", pinned)
+        json.put("profileName", profileName ?: JSONObject.NULL)
+        if (portForwards.isNotEmpty()) {
+            val arr = JSONArray()
+            portForwards.forEach { arr.put(it.toJson()) }
+            json.put("portForwards", arr)
+        }
         return json
     }
 
@@ -165,7 +191,12 @@ data class ExportConnection(
             useCtrlAltAsMetaKey = json.optBoolean("useCtrlAltAsMetaKey", false),
             ipVersion = json.optString("ipVersion", "IPV4_AND_IPV6"),
             groupName = json.optStringOrNull("groupName"),
-            credentialLabel = json.optStringOrNull("credentialLabel")
+            credentialLabel = json.optStringOrNull("credentialLabel"),
+            pinned = json.optBoolean("pinned", false),
+            profileName = json.optStringOrNull("profileName"),
+            portForwards = json.optJSONArray("portForwards")?.let { arr ->
+                (0 until arr.length()).map { ExportPortForward.fromJson(arr.getJSONObject(it)) }
+            } ?: emptyList()
         )
     }
 }
@@ -255,6 +286,112 @@ data class ExportConnectionGroup(
             name = json.optString("name", ""),
             color = json.optStringOrNull("color"),
             sortOrder = json.optInt("sortOrder", 0)
+        )
+    }
+}
+
+/**
+ * Exported port forwarding rule.
+ */
+data class ExportPortForward(
+    val nickname: String,
+    val type: String,
+    val sourcePort: Int,
+    val destAddr: String?,
+    val destPort: Int
+) {
+    fun toJson(): JSONObject {
+        val json = JSONObject()
+        json.put("nickname", nickname)
+        json.put("type", type)
+        json.put("sourcePort", sourcePort)
+        json.put("destAddr", destAddr ?: JSONObject.NULL)
+        json.put("destPort", destPort)
+        return json
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): ExportPortForward = ExportPortForward(
+            nickname = json.optString("nickname", ""),
+            type = json.optString("type", "local"),
+            sourcePort = json.optInt("sourcePort", 0),
+            destAddr = json.optStringOrNull("destAddr"),
+            destPort = json.optInt("destPort", 0)
+        )
+    }
+}
+
+/**
+ * Exported terminal profile.
+ */
+data class ExportProfile(
+    val name: String,
+    val iconColor: String?,
+    val fontFamily: String?,
+    val fontSize: Int,
+    val delKey: String,
+    val encoding: String,
+    val emulation: String,
+    val forceSizeRows: Int?,
+    val forceSizeColumns: Int?
+) {
+    fun toJson(): JSONObject {
+        val json = JSONObject()
+        json.put("name", name)
+        json.put("iconColor", iconColor ?: JSONObject.NULL)
+        json.put("fontFamily", fontFamily ?: JSONObject.NULL)
+        json.put("fontSize", fontSize)
+        json.put("delKey", delKey)
+        json.put("encoding", encoding)
+        json.put("emulation", emulation)
+        json.put("forceSizeRows", forceSizeRows ?: JSONObject.NULL)
+        json.put("forceSizeColumns", forceSizeColumns ?: JSONObject.NULL)
+        return json
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): ExportProfile = ExportProfile(
+            name = json.optString("name", ""),
+            iconColor = json.optStringOrNull("iconColor"),
+            fontFamily = json.optStringOrNull("fontFamily"),
+            fontSize = json.optInt("fontSize", 10),
+            delKey = json.optString("delKey", "del"),
+            encoding = json.optString("encoding", "UTF-8"),
+            emulation = json.optString("emulation", "xterm-256color"),
+            forceSizeRows = if (json.isNull("forceSizeRows")) null else json.optInt("forceSizeRows"),
+            forceSizeColumns = if (json.isNull("forceSizeColumns")) null else json.optInt("forceSizeColumns")
+        )
+    }
+}
+
+/**
+ * Exported app preferences (keyboard layout, bottom bar, behaviour settings).
+ * Only keys the user has explicitly changed are stored — absent keys restore defaults on import.
+ */
+data class ExportPreferences(
+    val values: Map<String, String>
+) {
+    fun toJson(): JSONObject {
+        val json = JSONObject()
+        values.forEach { (k, v) -> json.put(k, v) }
+        return json
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject): ExportPreferences {
+            val map = mutableMapOf<String, String>()
+            json.keys().forEach { key -> map[key] = json.getString(key) }
+            return ExportPreferences(map)
+        }
+
+        /** Preference keys that are worth backing up (excludes device-specific and privacy-sensitive). */
+        val EXPORTABLE_KEYS = setOf(
+            "rotation", "keymode", "scrollback", "bell", "bellVolume", "bellVibrate",
+            "bellNotification", "bumpyarrows", "sortByColor", "fullscreen", "titlebarhide",
+            "pgupdngesture", "camera", "keepalive", "wifilock", "shiftfkeys", "ctrlfkeys",
+            "volumefont", "stickymodifiers", "connPersist", "fontFamily",
+            "extended_keyboard_keys", "terminal_bottom_bar_preset", "terminal_session_keyboard",
+            "custom_bottom_bar_layouts", "terminal_bracketed_paste_send"
         )
     }
 }

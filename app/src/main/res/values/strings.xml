@@ -1536,6 +1536,8 @@
 	<string name="export_include_connections">Connections</string>
 	<string name="export_include_quick_commands">Quick Commands</string>
 	<string name="export_include_credentials">Credentials</string>
+	<string name="export_include_profiles">Terminal Profiles</string>
+	<string name="export_include_preferences">App Preferences (keyboard, bottom bar…)</string>
 	<string name="export_credentials_warning">Credentials will be encrypted with a passphrase</string>
 	<string name="export_passphrase_label">Passphrase</string>
 	<string name="export_passphrase_confirm_label">Confirm passphrase</string>
