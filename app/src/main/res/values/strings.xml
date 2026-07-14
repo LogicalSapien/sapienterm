@@ -53,9 +53,9 @@
 	<string name="settings_bottom_bar_new_layout">"New layout"</string>
 	<!-- Phase 5 settings hub categories -->
 	<string name="settings_category_appearance">Appearance</string>
-	<string name="settings_category_appearance_desc">Theme, fonts, bottom bar</string>
+	<string name="settings_category_appearance_desc">Theme, fonts, display</string>
 	<string name="settings_category_terminal">Terminal</string>
-	<string name="settings_category_terminal_desc">Session, keyboard, bell</string>
+	<string name="settings_category_terminal_desc">Session, keyboard, shortcuts, bell</string>
 	<string name="settings_category_profiles">Profiles</string>
 	<string name="settings_category_profiles_desc">Default profile &amp; overrides</string>
 	<string name="settings_category_security">Security</string>
@@ -271,7 +271,7 @@
 	<string name="pref_custom_bottom_bar_edit_title">"Edit layout"</string>
 	<string name="pref_custom_bottom_bar_create_title">"New layout"</string>
 	<string name="pref_custom_bottom_bar_name_hint">"Name"</string>
-	<string name="pref_custom_bottom_bar_shortcuts_label">"Shortcuts (max 16) — Add key; arrows reorder rows; remove to delete. More (⋯) is always on the bar."</string>
+	<string name="pref_custom_bottom_bar_shortcuts_label">"Shortcuts (max 10) — Add key; arrows reorder rows; remove to delete. More (⋯) is always on the bar."</string>
 	<string name="pref_custom_bottom_bar_preview_label">"Preview"</string>
 	<string name="pref_custom_bottom_bar_preview_empty">"Add shortcuts to see preview"</string>
 	<string name="pref_custom_bottom_bar_remove_chip_a11y">"Remove %1$s shortcut"</string>
@@ -305,6 +305,7 @@
 	<string name="bottom_bar_action_ctrl_u">"Send Ctrl+U (kill line backward)"</string>
 	<string name="bottom_bar_action_ctrl_l">"Send Ctrl+L (clear / redraw)"</string>
 	<string name="bottom_bar_action_tab">"Send Tab"</string>
+	<string name="bottom_bar_action_backspace">"Send Backspace"</string>
 	<string name="bottom_bar_action_esc">"Send Escape"</string>
 	<string name="bottom_bar_action_arrow_left">"Send Left arrow"</string>
 	<string name="bottom_bar_action_arrow_right">"Send Right arrow"</string>
@@ -428,6 +429,11 @@
 	<string name="pref_conn_persist_title">"Keep sessions running in background"</string>
 	<!-- Summary for the preference that forces the service to stay running in the background. -->
 	<string name="pref_conn_persist_summary">"Keep sessions alive when the app is in the background"</string>
+
+	<string name="connection_persist_prompt_title">Keep this session connected?</string>
+	<string name="connection_persist_prompt_message">SapienTerm can keep SSH sessions running after you switch apps. This uses a persistent notification while a session is active. You can change this later in Settings.</string>
+	<string name="connection_persist_prompt_enable">Keep connected</string>
+	<string name="connection_persist_prompt_continue">Not now</string>
 
 	<!-- Name for the keyboard shortcuts preference -->
 	<string name="pref_keymode_title">"Hardware keyboard shortcuts"</string>

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.KeyboardTab
 import androidx.compose.material.icons.automirrored.filled.LastPage
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
@@ -151,6 +152,13 @@ fun BottomBarShortcutVisual(
 
             BottomBarShortcutAction.TAB -> Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardTab,
+                contentDescription = desc,
+                tint = tintIdle,
+                modifier = Modifier.size(IconDp)
+            )
+
+            BottomBarShortcutAction.BACKSPACE -> Icon(
+                imageVector = Icons.AutoMirrored.Filled.Backspace,
                 contentDescription = desc,
                 tint = tintIdle,
                 modifier = Modifier.size(IconDp)

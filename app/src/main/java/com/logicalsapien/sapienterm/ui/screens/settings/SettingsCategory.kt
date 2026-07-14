@@ -34,8 +34,7 @@ enum class SettingsCategory(
         descriptionRes = R.string.settings_category_appearance_desc,
         icon = Icons.Filled.Palette,
         sectionTitleRes = listOf(
-            R.string.settings_section_display,
-            R.string.settings_section_bottom_bar
+            R.string.settings_section_display
         )
     ),
     TERMINAL(
@@ -45,6 +44,7 @@ enum class SettingsCategory(
         icon = Icons.Filled.Terminal,
         sectionTitleRes = listOf(
             R.string.settings_section_session,
+            R.string.settings_section_bottom_bar,
             R.string.settings_section_keyboard,
             R.string.settings_section_bell
         )

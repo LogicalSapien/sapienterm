@@ -66,6 +66,7 @@ object PreferenceConstants {
     const val DEFAULT_BELL_VOLUME: Float = 0.25f
 
     const val CONNECTION_PERSIST: String = "connPersist"
+    const val CONNECTION_PERSIST_PROMPT_SHOWN: String = "connPersistPromptShown"
     const val NOTIFICATION_PERMISSION_DENIED: String = "notificationPermissionDenied"
 
     const val SHIFT_FKEYS: String = "shiftfkeys"

@@ -25,8 +25,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -41,9 +41,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccessTime
@@ -72,16 +72,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -99,6 +94,8 @@ import org.connectbot.terminal.VTermKey
  * 48dp matches Material minimum touch target so strip icons are not vertically clipped.
  */
 private const val BOTTOM_BAR_HEIGHT_DP = 48
+
+private const val PINNED_BOTTOM_BAR_ACTIONS = 2
 
 /**
  * Theme-aware teal accent colors used for active/highlighted states.
@@ -262,66 +259,29 @@ fun TerminalBottomBar(
                 .fillMaxWidth()
                 .height(BOTTOM_BAR_HEIGHT_DP.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val barScrollState = rememberScrollState()
-                val scrollValue = barScrollState.value
-                val scrollMax = barScrollState.maxValue
-                val edgeFadeColor = MaterialTheme.colorScheme.surfaceVariant
-                val stripOverflowHint = stringResource(R.string.bottom_bar_strip_scroll_overflow_state)
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val rawStrip = customShortcutStrip ?: TerminalBottomBarPreset.DEFAULT_STRIP
+                val activeStrip = rawStrip
+                    .filterNot { it == BottomBarShortcutAction.MORE_KEYS }
+                    .take(TerminalBottomBarPreset.MAX_VISIBLE_STRIP_ACTIONS)
+                val totalSlots = (activeStrip.size + PINNED_BOTTOM_BAR_ACTIONS).coerceAtLeast(1)
+                val slotSize = (maxWidth / totalSlots)
+                    .coerceAtMost(BOTTOM_BAR_HEIGHT_DP.dp)
+
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .horizontalScroll(barScrollState)
-                        .height(BOTTOM_BAR_HEIGHT_DP.dp)
-                        .semantics {
-                            if (scrollMax > 0 && (scrollValue > 0 || scrollValue < scrollMax)) {
-                                stateDescription = stripOverflowHint
-                            }
-                        }
-                        .drawWithContent {
-                            drawContent()
-                            val edge = 20.dp.toPx()
-                            val w = size.width
-                            val h = size.height
-                            if (scrollValue > 0) {
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(edgeFadeColor.copy(alpha = 0.92f), Color.Transparent),
-                                        startX = 0f,
-                                        endX = edge
-                                    ),
-                                    topLeft = Offset.Zero,
-                                    size = Size(edge, h)
-                                )
-                            }
-                            if (scrollMax > 0 && scrollValue < scrollMax) {
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, edgeFadeColor.copy(alpha = 0.92f)),
-                                        startX = w - edge,
-                                        endX = w
-                                    ),
-                                    topLeft = Offset(w - edge, 0f),
-                                    size = Size(edge, h)
-                                )
-                            }
-                        },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(0.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Shortcuts in the strip: use the custom layout when set, otherwise fall back to the
-                    // built-in SSH defaults so new users always see something useful. MORE_KEYS opens the
-                    // full panel and is always accessible via ⋯, so skip it in the strip itself.
-                    val activeStrip = customShortcutStrip ?: TerminalBottomBarPreset.DEFAULT_STRIP
-                    run {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(BOTTOM_BAR_HEIGHT_DP.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
                         for (action in activeStrip) {
-                            if (action == BottomBarShortcutAction.MORE_KEYS) continue
-                            IconButton(
-                                modifier = Modifier.size(BOTTOM_BAR_HEIGHT_DP.dp),
+                            CompactBottomBarButton(
+                                modifier = Modifier.size(slotSize, BOTTOM_BAR_HEIGHT_DP.dp),
                                 onClick = {
                                     performCustomBottomBarAction(
                                         action = action,
@@ -366,91 +326,109 @@ fun TerminalBottomBar(
                             }
                         }
                     }
-                }
 
-                // Modifier active badges — fade in/out when Ctrl/Alt/Shift is pressed or locked
-                listOf(
-                    modifierState.ctrlState to "Ctrl",
-                    modifierState.altState to "Alt",
-                    modifierState.shiftState to "Shift",
-                ).forEach { (level, label) ->
-                    AnimatedVisibility(
-                        visible = level != ModifierLevel.OFF,
-                        enter = fadeIn(tween(120)),
-                        exit = fadeOut(tween(120))
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = tealActive().copy(alpha = 0.22f),
-                            modifier = Modifier.padding(horizontal = 2.dp)
+                    // Modifier active badges — fade in/out when Ctrl/Alt/Shift is pressed or locked
+                    listOf(
+                        modifierState.ctrlState to "Ctrl",
+                        modifierState.altState to "Alt",
+                        modifierState.shiftState to "Shift",
+                    ).forEach { (level, label) ->
+                        AnimatedVisibility(
+                            visible = level != ModifierLevel.OFF,
+                            enter = fadeIn(tween(120)),
+                            exit = fadeOut(tween(120))
                         ) {
-                            Text(
-                                text = if (level == ModifierLevel.LOCKED) label.uppercase() else label,
-                                color = tealActive(),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = tealActive().copy(alpha = 0.22f),
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (level == ModifierLevel.LOCKED) label.uppercase() else label,
+                                    color = tealActive(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     }
-                }
 
-                IconButton(
-                    modifier = Modifier.size(BOTTOM_BAR_HEIGHT_DP.dp),
-                    onClick = {
-                        activePanel = if (activePanel == BottomBarPanel.MORE_KEYS) {
-                            BottomBarPanel.NONE
-                        } else {
-                            BottomBarPanel.MORE_KEYS
+                    CompactBottomBarButton(
+                        modifier = Modifier.size(slotSize, BOTTOM_BAR_HEIGHT_DP.dp),
+                        onClick = {
+                            activePanel = if (activePanel == BottomBarPanel.MORE_KEYS) {
+                                BottomBarPanel.NONE
+                            } else {
+                                BottomBarPanel.MORE_KEYS
+                            }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreHoriz,
+                            contentDescription = stringResource(R.string.bottom_bar_action_more_keys),
+                            tint = if (activePanel == BottomBarPanel.MORE_KEYS) tealActive() else tealText(),
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreHoriz,
-                        contentDescription = stringResource(R.string.bottom_bar_action_more_keys),
-                        tint = if (activePanel == BottomBarPanel.MORE_KEYS) tealActive() else tealText(),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
 
-                // Keyboard toggle — pinned next to More (never scrolled away).
-                IconButton(
-                    modifier = Modifier.size(BOTTOM_BAR_HEIGHT_DP.dp),
-                    onClick = {
-                        if (keyboardLockedOff) {
-                            onToggleKeyboardLock()
-                            onToggleKeyboard()
-                        } else if (showSoftwareKeyboard) {
-                            onToggleKeyboardLock()
-                            onToggleKeyboard()
-                        } else {
-                            onToggleKeyboard()
+                    // Keyboard toggle — pinned next to More (never scrolled away).
+                    CompactBottomBarButton(
+                        modifier = Modifier.size(slotSize, BOTTOM_BAR_HEIGHT_DP.dp),
+                        onClick = {
+                            if (keyboardLockedOff) {
+                                onToggleKeyboardLock()
+                                onToggleKeyboard()
+                            } else if (showSoftwareKeyboard) {
+                                onToggleKeyboardLock()
+                                onToggleKeyboard()
+                            } else {
+                                onToggleKeyboard()
+                            }
                         }
+                    ) {
+                        Icon(
+                            imageVector = if (keyboardLockedOff) {
+                                Icons.Default.KeyboardHide
+                            } else if (showSoftwareKeyboard) {
+                                Icons.Default.KeyboardHide
+                            } else {
+                                Icons.Default.Keyboard
+                            },
+                            contentDescription = when {
+                                keyboardLockedOff -> stringResource(R.string.bottom_bar_a11y_kb_disabled)
+                                showSoftwareKeyboard -> stringResource(R.string.bottom_bar_a11y_kb_hide_lock)
+                                else -> stringResource(R.string.bottom_bar_a11y_kb_show)
+                            },
+                            tint = if (keyboardLockedOff) {
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = if (keyboardLockedOff) {
-                            Icons.Default.KeyboardHide
-                        } else if (showSoftwareKeyboard) {
-                            Icons.Default.KeyboardHide
-                        } else {
-                            Icons.Default.Keyboard
-                        },
-                        contentDescription = when {
-                            keyboardLockedOff -> stringResource(R.string.bottom_bar_a11y_kb_disabled)
-                            showSoftwareKeyboard -> stringResource(R.string.bottom_bar_a11y_kb_hide_lock)
-                            else -> stringResource(R.string.bottom_bar_a11y_kb_show)
-                        },
-                        tint = if (keyboardLockedOff) {
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(22.dp)
-                    )
                 }
             }
         }
+    }
+}
+
+/**
+ * Dense bar slot that can shrink below Material's default 48dp minimum while keeping
+ * the popup-panel controls full-sized.
+ */
+@Composable
+private fun CompactBottomBarButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier.clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
     }
 }
 
@@ -893,6 +871,17 @@ private fun MoreKeysPanel(
                     keyHandler.sendTab()
                     onInteraction()
                 })
+            }
+
+            if (!inStrip(BottomBarShortcutAction.BACKSPACE)) {
+                MoreKeyIconChip(
+                    imageVector = Icons.AutoMirrored.Filled.Backspace,
+                    contentDescription = stringResource(R.string.bottom_bar_action_backspace),
+                    onClick = {
+                        keyHandler.sendPressedKey(VTermKey.BACKSPACE)
+                        onInteraction()
+                    }
+                )
             }
 
             val altLevel = modifierState.altState

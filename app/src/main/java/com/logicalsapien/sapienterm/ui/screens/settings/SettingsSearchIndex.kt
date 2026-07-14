@@ -53,9 +53,9 @@ fun settingsSearchIndex(): List<SettingsSearchEntry> = listOf(
         listOf("title bar", "hide", "autohide")
     ),
     SettingsSearchEntry(
-        SettingsCategory.APPEARANCE,
+        SettingsCategory.TERMINAL,
         R.string.pref_terminal_bottom_bar_title,
-        listOf("bottom bar", "toolbar", "shortcuts")
+        listOf("bottom bar", "toolbar", "shortcuts", "keyboard")
     ),
 
     // Terminal / Session

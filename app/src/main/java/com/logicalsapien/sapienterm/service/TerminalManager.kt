@@ -392,7 +392,7 @@ class TerminalManager :
             connectivityMonitor.incRef()
         }
 
-        if (prefs.getBoolean(PreferenceConstants.CONNECTION_PERSIST, true)) {
+        if (prefs.getBoolean(PreferenceConstants.CONNECTION_PERSIST, false)) {
             connectionNotifier.showRunningNotification(this)
         }
 
