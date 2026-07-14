@@ -29,7 +29,7 @@ data class CustomBottomBarLayout(
         get() = actionIds.mapNotNull { BottomBarShortcutAction.fromId(it) }
 
     companion object {
-        const val MAX_ACTIONS: Int = 16
+        const val MAX_ACTIONS: Int = 10
 
         fun fromJson(o: JSONObject): CustomBottomBarLayout {
             val id = o.getString("id")

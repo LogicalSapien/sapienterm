@@ -17,6 +17,7 @@ enum class TerminalBottomBarPreset(val prefValue: String) {
 
     companion object {
         const val CUSTOM_PREFIX: String = "custom:"
+        const val MAX_VISIBLE_STRIP_ACTIONS: Int = 10
 
         fun fromPref(value: String?): TerminalBottomBarPreset {
             val v = value?.trim().orEmpty()

@@ -34,6 +34,7 @@ enum class BottomBarShortcutAction(
     CTRL_U("ctrl_u", "^U", R.string.bottom_bar_action_ctrl_u),
     CTRL_L("ctrl_l", "^L", R.string.bottom_bar_action_ctrl_l),
     TAB("tab", "Tab", R.string.bottom_bar_action_tab),
+    BACKSPACE("backspace", "⌫", R.string.bottom_bar_action_backspace),
     ESC("esc", "Esc", R.string.bottom_bar_action_esc),
     ARROW_LEFT("arrow_left", "\u2190", R.string.bottom_bar_action_arrow_left),
     ARROW_RIGHT("arrow_right", "\u2192", R.string.bottom_bar_action_arrow_right),
@@ -97,6 +98,7 @@ fun performCustomBottomBarAction(
         BottomBarShortcutAction.CTRL_U -> bridge.sendEscapeSequence("\u0015")
         BottomBarShortcutAction.CTRL_L -> bridge.sendEscapeSequence("\u000C")
         BottomBarShortcutAction.TAB -> bridge.sendEscapeSequence("\u0009")
+        BottomBarShortcutAction.BACKSPACE -> keyHandler.sendPressedKey(VTermKey.BACKSPACE)
         BottomBarShortcutAction.ESC -> bridge.sendEscapeSequence("\u001b")
         BottomBarShortcutAction.ARROW_LEFT -> keyHandler.sendPressedKey(VTermKey.LEFT)
         BottomBarShortcutAction.ARROW_RIGHT -> keyHandler.sendPressedKey(VTermKey.RIGHT)

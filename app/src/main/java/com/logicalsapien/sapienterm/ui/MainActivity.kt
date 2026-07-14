@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.edit
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.net.toUri
@@ -150,6 +151,30 @@ class MainActivity : AppCompatActivity() {
             val navController = rememberNavController()
             val context = LocalContext.current
             var showPermissionRationale by remember { mutableStateOf(false) }
+            var showConnectionPersistencePrompt by remember { mutableStateOf(false) }
+            var pendingPersistenceHost by remember { mutableStateOf<Host?>(null) }
+            var pendingPersistenceUri by remember { mutableStateOf<Uri?>(null) }
+            val prefs = remember(context) { PreferenceManager.getDefaultSharedPreferences(context) }
+
+            fun shouldOfferConnectionPersistence(): Boolean =
+                !prefs.contains(PreferenceConstants.CONNECTION_PERSIST_PROMPT_SHOWN) &&
+                    !prefs.contains(PreferenceConstants.CONNECTION_PERSIST)
+
+            fun markConnectionPersistenceChoice(enabled: Boolean) {
+                prefs.edit {
+                    putBoolean(PreferenceConstants.CONNECTION_PERSIST_PROMPT_SHOWN, true)
+                    putBoolean(PreferenceConstants.CONNECTION_PERSIST, enabled)
+                }
+            }
+
+            fun navigateToHost(host: Host) {
+                navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
+                    popUpTo(NavDestinations.HOST_LIST) {
+                        inclusive = false
+                    }
+                    launchSingleTop = true
+                }
+            }
 
             LaunchedEffect(Unit) {
                 appViewModel.showPermissionRationale.collect {
@@ -175,14 +200,35 @@ class MainActivity : AppCompatActivity() {
                     requestedUri?.let { uri ->
                         Timber.d("Processing URI: $uri")
                         navController.let { controller ->
-                            val shouldShowRationale = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                this@MainActivity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+                            if (shouldOfferConnectionPersistence()) {
+                                pendingPersistenceUri = uri
+                                requestedUri = null
+                                showConnectionPersistencePrompt = true
+                                return@let
+                            }
+                            val persistConnections =
+                                prefs.getBoolean(PreferenceConstants.CONNECTION_PERSIST, false)
+                            val canProceed = if (!persistConnections) {
+                                true
                             } else {
-                                false
+                                val shouldShowRationale =
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        this@MainActivity.shouldShowRequestPermissionRationale(
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        )
+                                    } else {
+                                        false
+                                    }
+
+                                Timber.d("shouldShowRationale=$shouldShowRationale")
+                                appViewModel.checkAndRequestNotificationPermission(
+                                    context,
+                                    uri,
+                                    shouldShowRationale
+                                )
                             }
 
-                            Timber.d("shouldShowRationale=$shouldShowRationale")
-                            if (appViewModel.checkAndRequestNotificationPermission(context, uri, shouldShowRationale)) {
+                            if (canProceed) {
                                 Timber.d("Permission check passed, handling connection")
                                 handleConnectionUri(uri, controller)
                                 requestedUri = null
@@ -236,12 +282,7 @@ class MainActivity : AppCompatActivity() {
                     pendingHostConnection?.let { host ->
                         Timber.d("Navigating to console for pending host: ${host.nickname}")
                         pendingHostConnection = null
-                        navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
-                            popUpTo(NavDestinations.HOST_LIST) {
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                        }
+                        navigateToHost(host)
                     }
                 }
             }
@@ -259,12 +300,7 @@ class MainActivity : AppCompatActivity() {
                             }
                             // Also handle pending host connection
                             pendingHostConnection?.let { host ->
-                                navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
-                                    popUpTo(NavDestinations.HOST_LIST) {
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                }
+                                navigateToHost(host)
                                 pendingHostConnection = null
                             }
                         },
@@ -279,24 +315,67 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            if (showConnectionPersistencePrompt) {
+                SapienTermTheme {
+                    ConnectionPersistencePromptDialog(
+                        onEnable = {
+                            Timber.d("User enabled connection persistence")
+                            showConnectionPersistencePrompt = false
+                            markConnectionPersistenceChoice(true)
+                            val uri = pendingPersistenceUri
+                            val host = pendingPersistenceHost
+                            pendingPersistenceUri = null
+                            pendingPersistenceHost = null
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                !NotificationPermissionHelper.isNotificationPermissionGranted(context)
+                            ) {
+                                uri?.let { appViewModel.setPendingConnectionUri(it) }
+                                host?.let { pendingHostConnection = it }
+                                val shouldShowRationale =
+                                    this@MainActivity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
+                                appViewModel.requestNotificationPermission(shouldShowRationale)
+                            } else {
+                                uri?.let {
+                                    handleConnectionUri(it, navController)
+                                    requestedUri = null
+                                }
+                                host?.let { navigateToHost(it) }
+                            }
+                        },
+                        onContinue = {
+                            Timber.d("User continued without connection persistence")
+                            showConnectionPersistencePrompt = false
+                            markConnectionPersistenceChoice(false)
+                            pendingPersistenceUri?.let {
+                                handleConnectionUri(it, navController)
+                                requestedUri = null
+                            }
+                            pendingPersistenceHost?.let { navigateToHost(it) }
+                            pendingPersistenceUri = null
+                            pendingPersistenceHost = null
+                        }
+                    )
+                }
+            }
+
             // Callback to check permission before navigating to console
-            val onNavigateToConsole: (Host) -> Unit = { host ->
+            val onNavigateToConsole: (Host) -> Unit = onNavigateToConsole@{ host ->
                 Timber.d("onNavigateToConsole called for host: ${host.nickname}")
 
                 // Check if connection persistence is enabled
-                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-                val persistConnections = prefs.getBoolean(PreferenceConstants.CONNECTION_PERSIST, true)
+                if (shouldOfferConnectionPersistence()) {
+                    pendingPersistenceHost = host
+                    showConnectionPersistencePrompt = true
+                    return@onNavigateToConsole
+                }
+
+                val persistConnections = prefs.getBoolean(PreferenceConstants.CONNECTION_PERSIST, false)
 
                 if (!persistConnections || NotificationPermissionHelper.isNotificationPermissionGranted(context)) {
                     // Either persistence is disabled (no permission needed) or permission granted, navigate immediately
                     // Pop any existing console screen so only one exists on the stack
-                    navController.navigate("${NavDestinations.CONSOLE}/${host.id}") {
-                        // Pop any existing console entry so we don't stack multiple console screens
-                        popUpTo(NavDestinations.HOST_LIST) {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
+                    navigateToHost(host)
                 } else {
                     // Persistence is enabled but no permission - need to request permission
                     Timber.d("Requesting notification permission before connection")
@@ -465,6 +544,28 @@ private fun NotificationPermissionRationaleDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.connect_anyway))
+            }
+        }
+    )
+}
+
+@Composable
+private fun ConnectionPersistencePromptDialog(
+    onEnable: () -> Unit,
+    onContinue: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onContinue,
+        title = { Text(stringResource(R.string.connection_persist_prompt_title)) },
+        text = { Text(stringResource(R.string.connection_persist_prompt_message)) },
+        confirmButton = {
+            TextButton(onClick = onEnable) {
+                Text(stringResource(R.string.connection_persist_prompt_enable))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onContinue) {
+                Text(stringResource(R.string.connection_persist_prompt_continue))
             }
         }
     )
