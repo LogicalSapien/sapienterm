@@ -36,9 +36,15 @@ jobs:
           KEYSTORE_PATH="${RUNNER_TEMP}/release.jks"
           echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_base64'      | base64 --decode > "${KEYSTORE_PATH}"
           echo "KEYSTORE_PATH=${KEYSTORE_PATH}"                                         >> "${GITHUB_ENV}"
-          echo "KEYSTORE_PASSWORD=$(echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_password')" >> "${GITHUB_ENV}"
-          echo "KEY_ALIAS=$(echo "$SAPIENTERM_SECRETS"         | jq -r '.key_alias')"         >> "${GITHUB_ENV}"
-          echo "KEY_PASSWORD=$(echo "$SAPIENTERM_SECRETS"      | jq -r '.key_password')"      >> "${GITHUB_ENV}"
+          KEYSTORE_PASSWORD="$(echo "$SAPIENTERM_SECRETS" | jq -r '.keystore_password')"
+          KEY_ALIAS="$(echo "$SAPIENTERM_SECRETS"         | jq -r '.key_alias')"
+          KEY_PASSWORD="$(echo "$SAPIENTERM_SECRETS"      | jq -r '.key_password')"
+          echo "::add-mask::${KEYSTORE_PASSWORD}"
+          echo "::add-mask::${KEY_ALIAS}"
+          echo "::add-mask::${KEY_PASSWORD}"
+          echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}" >> "${GITHUB_ENV}"
+          echo "KEY_ALIAS=${KEY_ALIAS}"                 >> "${GITHUB_ENV}"
+          echo "KEY_PASSWORD=${KEY_PASSWORD}"           >> "${GITHUB_ENV}"
 
       - name: Build release AAB
         run: ./gradlew bundleGoogleRelease --no-daemon
